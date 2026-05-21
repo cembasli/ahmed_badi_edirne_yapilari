@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riyâz-ı Belde-i Edirne — Yapı Envanteri</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1a1208;--parchment:#f5efe0;--cream:#fdf8ee;
+  --gold:#b08030;--gold-light:#d4a84b;--rust:#8b3a1a;
+  --teal:#1a5f6a;--teal-light:#2a8a9a;--border:#c8b48a;
+  --muted:#7a6848;--tag-bg:#e8dfc8;--highlight:#fff3cd;
+  --row-hover:#fdf4e0;--wikidata:#1a6496;--ke:#2e7d32;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Crimson Pro',Georgia,serif;background:var(--cream);color:var(--ink);min-height:100vh;}
+.site-header{background:var(--ink);color:var(--parchment);padding:20px 40px 14px;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:200;box-shadow:0 2px 16px rgba(0,0,0,0.4);}
+.header-top{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;}
+.site-title{font-size:1.5rem;font-weight:300;letter-spacing:.04em;color:var(--gold-light);font-style:italic;}
+.site-subtitle{font-family:'Space Mono',monospace;font-size:.62rem;color:var(--border);letter-spacing:.12em;text-transform:uppercase;}
+.header-meta{font-size:.82rem;color:var(--border);margin-top:3px;}
+.entry-count{font-family:'Space Mono',monospace;color:var(--gold-light);font-size:.78rem;}
+
+/* TABS */
+.tab-bar{background:#252010;display:flex;gap:0;border-bottom:2px solid var(--gold);}
+.tab-btn{padding:10px 28px;font-family:'Space Mono',monospace;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--border);background:transparent;border:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;}
+.tab-btn:hover{color:var(--gold-light);}
+.tab-btn.active{color:var(--gold-light);border-bottom-color:var(--gold-light);background:#1a1208;}
+
+/* CONTROLS */
+.controls{background:var(--parchment);border-bottom:2px solid var(--border);padding:12px 40px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;position:sticky;top:97px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+.search-box{flex:1;min-width:180px;padding:7px 12px;border:1.5px solid var(--border);border-radius:4px;font-family:'Crimson Pro',serif;font-size:.95rem;background:white;color:var(--ink);outline:none;transition:border-color .2s;}
+.search-box:focus{border-color:var(--gold);}
+.search-box::placeholder{color:var(--muted);font-style:italic;}
+select.filter-select{padding:7px 10px;border:1.5px solid var(--border);border-radius:4px;font-family:'Crimson Pro',serif;font-size:.9rem;background:white;color:var(--ink);cursor:pointer;outline:none;}
+select.filter-select:focus{border-color:var(--gold);}
+.filter-badges{display:flex;gap:5px;flex-wrap:wrap;}
+.badge-btn{padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);background:var(--tag-bg);color:var(--ink);font-family:'Crimson Pro',serif;font-size:.82rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.badge-btn:hover{background:var(--border);}
+.badge-btn.active{background:var(--ink);color:var(--gold-light);border-color:var(--ink);}
+.results-info{font-family:'Space Mono',monospace;font-size:.68rem;color:var(--muted);white-space:nowrap;}
+.btn-export{padding:6px 12px;background:var(--teal);color:white;border:none;border-radius:4px;font-family:'Space Mono',monospace;font-size:.68rem;cursor:pointer;}
+.btn-export:hover{background:var(--teal-light);}
+
+/* TABLE */
+.pane{display:none;}
+.pane.active{display:block;}
+.table-wrapper{padding:20px 40px 60px;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:.9rem;background:white;border:1.5px solid var(--border);border-radius:6px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.06);}
+thead th{background:var(--ink);color:var(--gold-light);font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px;text-align:left;border-right:1px solid #333;white-space:nowrap;cursor:pointer;user-select:none;}
+thead th:last-child{border-right:none;}
+thead th:hover{background:#2a2010;}
+tbody tr{border-bottom:1px solid #e8dfc8;transition:background .12s;}
+tbody tr:hover{background:var(--row-hover);}
+tbody tr.has-both{border-left:3px solid var(--gold);}
+tbody tr.has-wikidata{border-left:3px solid var(--wikidata);}
+tbody tr.has-ke{border-left:3px solid var(--ke);}
+td{padding:8px 10px;vertical-align:top;border-right:1px solid #e8dfc8;}
+td:last-child{border-right:none;}
+.td-no{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--muted);white-space:nowrap;}
+.td-name{font-weight:600;color:var(--rust);min-width:160px;}
+.type-badge{display:inline-block;padding:2px 7px;border-radius:12px;font-size:.72rem;font-family:'Space Mono',monospace;white-space:nowrap;}
+.td-desc{max-width:300px;line-height:1.5;font-size:.85rem;color:#3a2a10;}
+.desc-toggle{color:var(--gold);cursor:pointer;font-style:italic;}
+.desc-full{display:none;}
+.desc-full.open{display:inline;}
+.td-edit{min-width:100px;}
+.editable-cell{display:flex;align-items:center;gap:3px;}
+.cell-input{width:100%;border:1px solid transparent;border-radius:3px;padding:3px 5px;font-family:'Space Mono',monospace;font-size:.72rem;background:transparent;color:var(--ink);transition:all .15s;}
+.cell-input:focus{outline:none;border-color:var(--gold);background:var(--highlight);}
+.cell-input.wikidata-input:not(:placeholder-shown){color:var(--wikidata);font-weight:700;}
+.cell-input.ke-input:not(:placeholder-shown){color:var(--ke);font-weight:700;}
+.td-coords{font-family:'Space Mono',monospace;font-size:.68rem;color:var(--teal);white-space:nowrap;min-width:120px;}
+.coords-map-link{color:var(--teal-light);text-decoration:none;display:block;}
+.coords-map-link:hover{text-decoration:underline;}
+.fetch-status{font-size:.68rem;color:var(--muted);font-style:italic;display:block;margin-top:2px;}
+.fetch-ok{color:var(--ke);}
+.fetch-err{color:var(--rust);}
+
+/* SURVIVAL COLUMN */
+.td-survival{white-space:nowrap;min-width:110px;}
+.surv-select{width:100%;padding:2px 4px;border:1px solid transparent;border-radius:3px;font-family:'Space Mono',monospace;font-size:.68rem;background:transparent;cursor:pointer;}
+.surv-select:focus{outline:none;border-color:var(--gold);background:var(--highlight);}
+.surv-select.surv-yes{color:#2e7d32;}
+.surv-select.surv-no{color:#c62828;}
+.surv-select.surv-partial{color:#e65100;}
+.surv-select.surv-unknown{color:var(--muted);}
+
+/* Category badge colors */
+.cat-cami{background:#e8f0fe;color:#1a4080;}
+.cat-mescit{background:#dce8ff;color:#2a5098;}
+.cat-tekke{background:#fce8f3;color:#7a1060;}
+.cat-medrese{background:#fff3e0;color:#7a3010;}
+.cat-turbe{background:#f3e5f5;color:#4a1070;}
+.cat-imaret{background:#e8f5e9;color:#1b5e20;}
+.cat-mektep{background:#fff9c4;color:#5a4000;}
+.cat-carsi{background:#fff3e0;color:#6a3000;}
+.cat-han{background:#efebe9;color:#3e2723;}
+.cat-hamam{background:#e0f7fa;color:#006064;}
+.cat-sebil{background:#b2dfdb;color:#00695c;}
+.cat-cesme{background:#e0f2f1;color:#004d40;}
+.cat-havuz{background:#b3e5fc;color:#01579b;}
+.cat-buzhane{background:#e8eaf6;color:#283593;}
+.cat-kilise{background:#fce4ec;color:#880e4f;}
+.cat-havra{background:#f8bbd0;color:#880e4f;}
+.cat-kopru{background:#ede7f6;color:#1a237e;}
+.cat-saray{background:#fffde7;color:#5a4000;}
+.cat-nehir{background:#e3f2fd;color:#0d47a1;}
+.cat-okmeydani{background:#f1f8e9;color:#1b5e20;}
+.cat-diger{background:#f5f5f5;color:#424242;}
+
+.no-results{text-align:center;padding:60px 20px;font-style:italic;color:var(--muted);font-size:1.1rem;}
+
+/* MAP */
+#map-pane{height:calc(100vh - 175px);position:relative;}
+#map{width:100%;height:100%;}
+.map-legend{position:absolute;bottom:30px;right:12px;background:rgba(26,18,8,0.92);color:var(--parchment);padding:12px 16px;border-radius:6px;font-family:'Space Mono',monospace;font-size:.65rem;z-index:1000;max-height:60vh;overflow-y:auto;border:1px solid var(--gold);}
+.map-legend h4{color:var(--gold-light);margin-bottom:8px;font-size:.7rem;letter-spacing:.08em;}
+.legend-row{display:flex;align-items:center;gap:7px;margin-bottom:4px;cursor:pointer;opacity:.9;}
+.legend-row:hover{opacity:1;}
+.legend-row.hidden-layer .legend-dot{opacity:.3;}
+.legend-row.hidden-layer span{opacity:.5;}
+.legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;border:1.5px solid rgba(255,255,255,0.3);}
+.map-info{position:absolute;top:12px;left:12px;background:rgba(26,18,8,0.88);color:var(--parchment);padding:8px 12px;border-radius:5px;font-family:'Space Mono',monospace;font-size:.65rem;z-index:1000;border:1px solid var(--gold);}
+.marker-label{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;}
+
+@media(max-width:900px){
+  .site-header,.controls,.table-wrapper{padding-left:14px;padding-right:14px;}
+  .controls{top:76px;}
+  table{font-size:.8rem;}
+  td,th{padding:6px 7px;}
+  .td-desc{max-width:180px;}
+}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="header-top">
+    <div class="site-title">Riyâz-ı Belde-i Edirne</div>
+    <div class="site-subtitle">— Osmanlı Edirne'si Yapı Envanteri</div>
+  </div>
+  <div class="header-meta">
+    Ahmet Bâdî Efendi · 20. Yüzyıla Kadar Osmanlı Edirne'si &nbsp;|&nbsp;
+    <span class="entry-count" id="entryCount">708</span> yapı kaydı
+  </div>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('table')">📋 Envanter Tablosu</button>
+  <button class="tab-btn" onclick="showTab('map')">🗺 Harita</button>
+</div>
+
+<div class="controls">
+  <input class="search-box" type="text" id="searchInput" placeholder="Yapı adı, kod veya açıklama ara…">
+  <select class="filter-select" id="catFilter">
+    <option value="">— Tüm Türler —</option>
+    <option value="Saray">Saray</option>
+    <option value="Cami">Cami</option>
+    <option value="Mescit">Mescit</option>
+    <option value="Tekke">Tekke</option>
+    <option value="Medrese">Medrese</option>
+    <option value="Türbe">Türbe</option>
+    <option value="İmaret">İmaret</option>
+    <option value="Mektep">Mektep</option>
+    <option value="Çarşı">Çarşı</option>
+    <option value="Han">Han</option>
+    <option value="Hamam">Hamam</option>
+    <option value="Sebil">Sebil</option>
+    <option value="Çeşme">Çeşme</option>
+    <option value="Havuz">Havuz</option>
+    <option value="Buzhane">Buzhane</option>
+    <option value="Kilise">Kilise</option>
+    <option value="Havra">Havra</option>
+    <option value="Köprü">Köprü</option>
+    <option value="Nehir">Nehir</option>
+    <option value="Ok Meydanı">Ok Meydanı</option>
+  </select>
+  <div class="filter-badges">
+    <button class="badge-btn active" data-pair="all">Tümü</button>
+    <button class="badge-btn" data-pair="wikidata">✓ Wikidata</button>
+    <button class="badge-btn" data-pair="no-wikidata">✗ Wikidata yok</button>
+    <button class="badge-btn" data-pair="ke">✓ KE ID</button>
+    <button class="badge-btn" data-pair="no-ke">✗ KE ID yok</button>
+    <button class="badge-btn" data-pair="both">✓ Her ikisi</button>
+    <button class="badge-btn" data-pair="none">✗ İkisi de yok</button>
+    <button class="badge-btn" data-pair="ayakta">Ayakta</button>
+    <button class="badge-btn" data-pair="yikilmis">Yıkılmış</button>
+  </div>
+  <span class="results-info" id="resultsInfo"></span>
+  <button class="btn-export" onclick="exportCSV()">CSV İndir</button>
+</div>
+
+<!-- TABLE PANE -->
+<div id="table-pane" class="pane active">
+<div class="table-wrapper">
+  <table id="mainTable">
+    <thead>
+      <tr>
+        <th onclick="sortBy('id')">Kod ↕</th>
+        <th onclick="sortBy('name')">Yapı Adı ↕</th>
+        <th onclick="sortBy('type')">Tür ↕</th>
+        <th>Açıklama</th>
+        <th title="Wikidata QID giriniz (ör: Q123456)">Wikidata QID</th>
+        <th title="Kültür Envanteri ID giriniz">KE ID</th>
+        <th onclick="sortBy('survival')">Günümüzde ↕</th>
+        <th>Koordinat</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <div id="noResults" class="no-results" style="display:none">Sonuç bulunamadı.</div>
+</div>
+</div>
+
+<!-- MAP PANE -->
+<div id="map-pane" class="pane">
+  <div class="map-info" id="mapInfo">Wikidata QID girilen yapılar haritada gösterilir.</div>
+  <div id="map"></div>
+  <div class="map-legend" id="mapLegend">
+    <h4>YAPI TÜRLERİ</h4>
+  </div>
+</div>
+
+<script>
+// ========================
+// DATA
+// ========================
+const RAW_DATA = [
+['S-01','Edirne Sarayı','Saray','Osmanlı sarayı; 1171, 1182, 1201, 1223, 1243 ve 1290 tarihlerinde tamir görmüştür. Sultânların Edirne\'deki ikâmetgâhıdır.'],
+['C-01','Eski Câmi','Cami','Vasat-ı şehrde muvakkithâne sokağının 12. numarasında vâki Câmi-i Atîk. Emîr Süleymân esâsını koymuş, Mûsâ Çelebi devam ettirmiş, Çelebi Sultân Mehmed 816/1413 senesinde tamamlatmıştır. Dokuz iç kubbesi, beş dış kubbesi, biri iki biri bir şerefeli iki minaresi vardır. Mimarı El-Hâc Alâüddîn, kalfası Ömer bin İbrâhîm\'dir. 1166/1752 tarihinde Sultân Mahmûd tarafından tamir ettirilmiştir.'],
+['C-02','Üç Şerefeli Câmii','Cami','Sultân Murâd-ı Sânî\'nin vasat-ı şehrde çarşı içinde Üçşerefeli caddesinin 2. numarasında yaptırdığı câmi. 841–851/1437–1447 yılları arasında inşa edilmiştir. İki pâye üzerine dokuz kubbeli, dört minareli büyük câmidir. Minarelerinden biri üç şerefeli ve üç yolludur. Pîşgâhında üç kapılı harem ve şadırvan vardır.'],
+['C-03','Murâdiye Câmii','Cami','Sultân Murâd-ı Sânî\'nin Murâdiye Mahallesinde, 3. numarada yaptırdığı iki kubbeli ve bir minareli câmidir. 839/1435 tarihinde bir tell-i refî\' üzerinde binâ olunmuştur. Derûnu ve minaresi kâşî ile müzeyyendir. Havlusunda şadırvan ve imâret vardır. 1166 tarihinde tamir edilmiştir.'],
+['C-04','Dârü\'l-hadîs Câmii','Cami','Sultân Murâd-ı Sânî\'nin Germekapı caddesinin 39. numarasında Tunca Nehri kenarında 838/1434 tarihinde yaptırdığı bir kubbeli ve bir minareli câmidir. Bidâyeten hadîs için medrese olarak inşa edilmiş, sonradan câmiye tahvil edilmiştir.'],
+['C-05','Sultân Bâyezîd Câmii','Cami','Sultân Bâyezîd-i Sânî tarafından yaptırılan selâtin câmii. Bâyezîd Külliyesi içindedir. Büyük tek kubbeli, iki minareli câmidir. Çevresinde darüşşifa, imâret, medrese ve hamam bulunmaktadır.'],
+['C-06','Yıldırım Bâyezîd Câmii','Cami','Yıldırım Bâyezîd\'in Edirne\'de yaptırdığı câmidir. Kiliseden tahvil olunmuş olup bir minaresi vardır. Cesâmetçe Edirne câmilerinin üçüncüsü olarak sayılmaktadır.'],
+['C-07','Halebî Câmii','Cami','Derûn-ı hisârda Keçeciler Kapısı caddesinde 38. numarada vâki Halebî Mehmed Bey tarafından yaptırılmış câmidir.'],
+['C-08','Kilise Câmii','Cami','Eski kiliseden câmiye tahvil edilmiş yapıdır.'],
+['C-09','Şeyh Şücâuddîn Câmii','Cami','Şeyh Şücâuddîn adına inşa edilmiş câmidir.'],
+['C-10','Ayşe Kadın Câmii','Cami','Ayşe Kadın tarafından yaptırılmış câmidir.'],
+['C-11','Sultân Câmii','Cami','Sultân adıyla bilinen câmidir.'],
+['C-12','Fatma Sultân Câmii','Cami','Fatma Sultân tarafından yaptırılmış câmidir.'],
+['C-13','İsmihân Sultân Câmii','Cami','İsmihân Sultân tarafından yaptırılmış câmidir.'],
+['C-14','Fenerci Hacı Câmii','Cami','Fenerci Hacı tarafından yaptırılmış câmidir.'],
+['C-15','Evliyâ Kasım Paşa Câmii','Cami','Evliyâ Kasım Paşa tarafından yaptırılmış câmidir.'],
+['C-16','İbrâhîm Paşa Câmii','Cami','Ebü\'l-feth Sultân Mehmed Han vüzerâsından İbrâhîm Paşa tarafından yaptırılmış câmidir.'],
+['C-17','Atîk Ali Paşa Câmii','Cami','Atîk Ali Paşa tarafından yaptırılmış câmidir.'],
+['C-18','Fîrûz Paşa Câmii','Cami','Sırık Meydanı\'nda kâin Fîrûz Paşa tarafından yaptırılmış câmidir.'],
+['C-19','Sarıca Paşa Câmii','Cami','Sarıca Paşa Mahallesinde bulunan câmidir.'],
+['C-20','Balaban Paşa Câmii','Cami','Balaban Paşa tarafından yaptırılmış câmidir.'],
+['C-21','Yâkût Paşa Câmii','Cami','Yâkût Paşa tarafından yaptırılmış câmidir.'],
+['C-22','Şâh Melek Paşa Câmii','Cami','Şâh Melek Paşa tarafından yaptırılmış câmidir.'],
+['C-23','İhmâl Paşa Câmii','Cami','İhmâl Paşa tarafından yaptırılmış câmidir.'],
+['C-24','Ali Paşa Câmii','Cami','Ali Paşa tarafından yaptırılmış câmidir.'],
+['C-25','Gâzî Mihal Bey Câmii','Cami','Gâzî Mihal Bey tarafından yaptırılmış câmidir.'],
+['C-26','Mezîd Bey Câmii','Cami','Mezîd Bey tarafından yaptırılmış, Yeşilce Câmii olarak da bilinen câmidir.'],
+['C-27','Çavuş Bey Câmii','Cami','Çavuş Bey tarafından yaptırılmış câmidir.'],
+['C-28','Süle Çelebi Câmii','Cami','Süle Çelebi tarafından yaptırılmış câmidir.'],
+['C-29','Şeyhî Çelebi Câmii','Cami','Şeyhî Çelebi tarafından yaptırılmış câmidir.'],
+['C-30','Sülleymâniye Câmii','Cami','Süleymâniye adıyla bilinen câmidir.'],
+['C-31','Mesûdiye Câmii','Cami','Mesûdiye adıyla bilinen câmidir.'],
+['C-32','Ferruh Ağa Câmii','Cami','Ferruh Ağa tarafından yaptırılmış câmidir.'],
+['C-33','Hızır Ağa Câmii','Cami','Hızır Ağa tarafından yaptırılmış câmidir.'],
+['C-34','Cafer Ağa Câmii','Cami','Cafer Ağa tarafından yaptırılmış câmidir.'],
+['C-35','Mehmed Ağa Câmii','Cami','Mehmed Ağa tarafından yaptırılmış câmidir.'],
+['C-36','Fîrûz Ağa Câmii','Cami','Fîrûz Ağa tarafından yaptırılmış câmidir.'],
+['C-37','Selçuk Hatun Câmii','Cami','Selçuk Hatun tarafından yaptırılmış câmidir.'],
+['C-38','Dâye Hatun Câmii','Cami','Dâye Hatun tarafından yaptırılmış câmidir.'],
+['C-39','Hâce İlyas Câmii','Cami','Hâce İlyas tarafından yaptırılmış câmidir.'],
+['C-40','Hacı Burnaz Câmii','Cami','Hacı Burnaz tarafından yaptırılmış câmidir.'],
+['C-41','Çokalca Câmii','Cami','Çokalca adıyla bilinen câmidir.'],
+['C-42','Defterdâr Câmii','Cami','Defterdâr tarafından yaptırılmış câmidir.'],
+['C-43','Taşlık Câmii','Cami','Taşlık Mahallesinde bulunan câmidir.'],
+['C-44','Lâleli Câmii','Cami','Lâleli adıyla bilinen câmidir.'],
+['C-45','Sarrâclar Câmii','Cami','Sarrâclar çarşısı civarında bulunan câmidir.'],
+['C-46','Yeşilce Câmii','Cami','Yeşilce adıyla bilinen câmidir.'],
+['C-47','Bürüncekci Câmii','Cami','Bürüncekci adıyla bilinen câmidir.'],
+['C-48','Beylerbeyi Câmii','Cami','Beylerbeyi Mahallesinde bulunan câmidir.'],
+['C-49','Noktacı Câmii','Cami','Noktacı adıyla bilinen câmidir.'],
+['C-50','Koğacılar Câmii','Cami','Koğacılar Mahallesinde bulunan câmidir.'],
+['C-51','Sarı Câmii','Cami','Sarı adıyla bilinen câmidir.'],
+['C-52','Kâdı Câmii','Cami','Kâdı tarafından yaptırılmış câmidir.'],
+['C-53','Kasâb Abdülazîz Câmii','Cami','Kasâb Abdülazîz tarafından yaptırılmış câmidir.'],
+['C-54','Sarrâf Câmii','Cami','Sarrâf adıyla bilinen câmidir.'],
+['C-55','Temelsiz Câmii','Cami','Temelsiz adıyla bilinen câmidir.'],
+['C-56','Kuşçu Doğan Câmii','Cami','Kuşçu Doğan adıyla bilinen câmidir.'],
+['C-57','Hâce İvaz Câmii','Cami','Hâce İvaz tarafından yaptırılmış câmidir.'],
+['C-58','Tanburacılar Câmii','Cami','Tanburacılar çarşısı civarındaki câmidir.'],
+['C-59','Alemdar Câmii','Cami','Alemdar adıyla bilinen câmidir.'],
+['C-60','Piyâde Kışla-i Hümâyûnu Câmii','Cami','Piyâde kışlasına ait câmidir.'],
+['C-137','Küçük Eski Câmii','Cami','137 numarayla kaydedilmiş küçük eski câmidir.'],
+['C-140','Vîran Câmii','Cami','Harabeye dönmüş olan câmidir.'],
+['C-146','Gendüm Küp Mescidi','Cami','Gendüm Küp adıyla bilinen mesciddir.'],
+['C-152','Topçu Kışlası Câmii','Cami','Topçu kışlasına ait câmidir.'],
+['C-153','Alagöz Mehmed Efendi Câmii','Cami','Alagöz Mehmed Efendi tarafından yaptırılmış câmidir.'],
+['C-154','Bâzergan Bâlî Câmii','Cami','Bâzergan Bâlî tarafından yaptırılmış câmidir.'],
+['C-155','Takkeci Kara Bâlî Câmii','Cami','Takkeci Kara Bâlî tarafından yaptırılmış câmidir.'],
+['C-156','Hacı Pervâne Câmii','Cami','Hacı Pervâne tarafından yaptırılmış câmidir.'],
+['C-157','Ebü\'l-fazl Mehmed Efendi Câmii','Cami','Ebü\'l-fazl Mehmed Efendi tarafından yaptırılmış câmidir.'],
+['C-158','Dîvâne Sinân Câmii','Cami','Dîvâne Sinân tarafından yaptırılmış câmidir.'],
+['C-159','Denizlizâde Câmii','Cami','Denizlizâde tarafından yaptırılmış câmidir.'],
+['C-160','İsâ Fakîh Câmii','Cami','İsâ Fakîh tarafından yaptırılmış câmidir.'],
+['C-161','Kâdı Abdülvehhâb Câmii','Cami','Kâdı Abdülvehhâb tarafından yaptırılmış câmidir.'],
+['C-163','Mehmed Tâhir Efendi Câmii','Cami','Mehmed Tâhir Efendi tarafından yaptırılmış câmidir.'],
+['C-164','Mustafa Âtıf Efendi Câmii','Cami','Mustafa Âtıf Efendi tarafından yaptırılmış câmidir.'],
+['M-001','Cedîd Kasım Paşa Mescidi','Mescit','Cedîd Kasım Paşa Mahallesinde Kapılı Sokağının 21. numarasında vâki mesciddir. Sakfı ahşâbdan olup bir minaresi vardır. Bânîsi 939/1532 tarihinde vefât edip Gelibolu\'da medfûndur.'],
+['M-002','Şehâbeddin Paşa Mescidi','Mescit','Şehâbeddin Paşa Sokağının 5. numarasında vâki Hadım Şehâbeddin Paşa tarafından 840/1437 tarihinde yapılmış mesciddir. Kirâslı Câmi adıyla da bilinmektedir.'],
+['M-003','Fazlullâh Paşa Mescidi','Mescit','Fazlullâh Paşa Mahallesinde Feyzullâh Paşa Câmii Sokağının 15. numarasında bulunan ahşap sakflı ve bir minareli mesciddir.'],
+['M-004','Şâh Melek Paşa Mescidi','Mescit','Hucerât-ı Şâh Melek Paşa Mahallesinde Şâh Melek çıkmazının 10. numarasında vâki ahşap sakflı mesciddir. Bânîsi Mihal Köprüsü başındaki câmi sahasında medfûndur.'],
+['M-005','Zen-i Sarıca Paşa Mescidi','Mescit','Zen-i Sarıca Paşa Mahallesinde Dâmâd Çeşmesi Sokağının 8. numarasında Sarıca Paşa hareminin yaptırdığı ahşap sakflı mesciddir.'],
+['M-006','Hasan Paşa Mescidi','Mescit','Hasan Paşa Mahallesinde Has Fırın Caddesinin 27. numarasında bulunan ahşap sakflı mesciddir.'],
+['M-007','Nişâncı Paşa Mescidi','Mescit','Nişâncı Paşa Mahallesinde Gülbahçesi Sokağında Nişâncı Mehmed Paşa tarafından yapılmış mesciddir. 1295 istîlâsında yıkılmış, 1305te yeniden inşa edilmiştir.'],
+['M-008','Ramazân Paşa Mescidi','Mescit','Murâdiye Mahallesinde Ali Ağa Caddesinin 2. numarasında Ramazân Paşa tarafından yaptırılmış mesciddir.'],
+['M-009','Zen-i İbrâhîm Paşa Mescidi','Mescit','Zen-i İbrâhîm Paşa Mahallesinde Zincirli Kapı Sokağının 46. numarasında İbrâhîm Paşa zevcesi Hundî Hâtun tarafından yapılmış mesciddir.'],
+['M-010','Şehâbeddîn Paşa Mescidi (2)','Mescit','Şehâbeddîn Paşa Kurb-ı Hamam-ı Fil Mahallesinde Saraçhâne Köprüsü Caddesinin 65. numarasında vâki mesciddir. 1294 istîlâsında yıkılmış, arsa kalmıştır.'],
+['M-011','Ali Paşa Mescidi','Mescit','Ali Paşa Çarşısı kurbunda 52. numarada Semiz Ali Paşa tarafından yapılmış mesciddir.'],
+['M-012','Esad Paşa Mescidi','Mescit','Tahmîs kurbunda Tahmîs Sokağının 2. numarasında Esad Muhlis Paşa tarafından 1243 tarihinde yapılmış mesciddir. 1272de yanmıştır.'],
+['M-013','Rüstem Paşa Mescidi','Mescit','Mûytâblarda İki Kapılı Han havlusunda şadırvan üzerine yapılmış Rüstem Paşa mescididir. Edirne\'de \'şadırvan üstü câmi\' olarak meşhurdu. 1295 Rus istîlâsında yıkılmıştır.'],
+['M-014','Hazînedâr Sinân Bey Mescidi','Mescit','Hazînedâr Sinân Bey Mahallesinde Hazînedâr Sinân Bey Câmii Sokağının 11. numarasında vâki ahşap sakflı mesciddir.'],
+['M-015','Yahya Bey Mescidi','Mescit','Yahya Bey Mahallesinde şair Yahya Bey\'in 985/1577 tarihinde yaptırdığı bir kubbeli ve bir minareli mesciddir.'],
+['M-016','Kopuzcu Ali Bey Mescidi','Mescit','Kopuzcu Ali Bey tarafından yapılmış mesciddir.'],
+['M-017','Ali Bey Mescidi','Mescit','Ali Bey tarafından yapılmış mesciddir.'],
+['M-018','Şerbetdâr Hamza Bey Mescidi','Mescit','Şerbetdâr Hamza Bey tarafından yapılmış mesciddir.'],
+['M-019','Rakkâs Ali Bey Mescidi','Mescit','Rakkâs Ali Bey tarafından yapılmış mesciddir.'],
+['M-020','Mîrâhûr Ayas Bey Mescidi','Mescit','Mîrâhûr Ayas Bey tarafından yapılmış mesciddir.'],
+['M-021','Umur Bey Mescidi','Mescit','Umur Bey tarafından yapılmış mesciddir.'],
+['M-022','Ak Mescid-i Sinân Bey','Mescit','Ak Mescid-i Sinân Bey Mahallesinde Ak Mescid Caddesinde bulunan mesciddir.'],
+['M-023','Ömer Bey Mescidi','Mescit','Ömer Bey tarafından yapılmış mesciddir.'],
+['M-024','Bedevîzâde Ahmed Bey Mescidi','Mescit','Bedevîzâde Ahmed Bey tarafından yapılmış mesciddir.'],
+['M-025','İbrâhîm Bey Mescidi','Mescit','İbrâhîm Bey tarafından yapılmış mesciddir.'],
+['M-026','Vize Çelebi Mescidi','Mescit','Vize Çelebi tarafından yapılmış mesciddir.'],
+['M-027','Kaya Çelebi Mescidi','Mescit','Kaya Çelebi tarafından yapılmış mesciddir.'],
+['M-028','Çene Efendi Mescidi','Mescit','Çene Efendi tarafından yapılmış mesciddir.'],
+['M-029','Hâce Ömer Efendi Mescidi','Mescit','Hâce Ömer Efendi tarafından yapılmış mesciddir.'],
+['M-030','Yahşî Fakîh Mescidi','Mescit','Yahşî Fakîh tarafından yapılmış mesciddir.'],
+['M-031','Veled-i Veliyyüddîn Mescidi','Mescit','Veled-i Veliyyüddîn Sokağının 3. numarasında bulunan mesciddir.'],
+['M-032','Monla Fahreddîn Mescidi','Mescit','Monla Fahreddîn tarafından yapılmış ahşap sakflı mesciddir.'],
+['M-033','Hayreddîn Mescidi','Mescit','Hayreddîn tarafından yapılmış mesciddir.'],
+['M-034','Hâcı Bedreddîn Mescidi','Mescit','Hacı Bedreddîn tarafından yapılmış mesciddir. El-yevm arsa hâlindedir.'],
+['M-035','Habbaz Muhyiddîn Mescidi','Mescit','Balıkpazarında Habbâz Muhyiddîn tarafından yapılmış mesciddir.'],
+['M-036','Mevlânâ Veliyyüddîn Mescidi','Mescit','Mevlânâ Veliyyüddîn tarafından yapılmış ahşap sakflı mesciddir.'],
+['M-037','Mahmûd Ağa Mescidi','Mescit','Mahmûd Ağa tarafından yapılmış mesciddir.'],
+['M-038','İsmâîl Ağa Mescidi','Mescit','İsmâîl Ağa tarafından yapılmış mesciddir.'],
+['M-039','Çakır Ağa Mescidi','Mescit','Çakır Ağa tarafından yapılmış ahşap sakflı mesciddir.'],
+['M-040','Teftîn Ağa Mescidi','Mescit','Teftîn Ağa tarafından yapılmış ahşap sakflı mesciddir.'],
+['M-041','Ârif Ağa Mescidi','Mescit','Ârif Ağa tarafından yapılmış, sakfı kubbeli ve bir minareli mesciddir.'],
+['M-042','Tarpûşî Mehmed Ağa Mescidi','Mescit','Tarpûşî Mehmed Ağa tarafından yapılmış mesciddir.'],
+['M-043','Berkuk Ağa Mescidi','Mescit','Berkuk Ağa tarafından yapılmış mesciddir.'],
+['M-044','Hacı Hasan Ağa Mescidi','Mescit','Hacı Hasan Ağa tarafından yapılmış mesciddir.'],
+['M-045','Hacı Emin Ağa Mescidi','Mescit','Hacı Emin Ağa tarafından yapılmış mesciddir.'],
+['M-046','Kürd Hâce Mescidi','Mescit','Kürd Hâce tarafından yapılmış mesciddir.'],
+['M-047','Gâzî Hâce Mescidi','Mescit','Gâzî Hâce tarafından yapılmış mesciddir.'],
+['M-048','Maruf Hâce Mescidi','Mescit','Maruf Hâce tarafından yapılmış mesciddir.'],
+['M-049','Mü\'min Hâce Mescidi','Mescit','Mü\'min Hâce tarafından yapılmış mesciddir.'],
+['M-050','Hâce Hayreddîn Mescidi','Mescit','Hâce Hayreddîn tarafından yapılmış mesciddir.'],
+['M-051','Hâcegî Mescidi','Mescit','Hâcegî tarafından yapılmış mesciddir.'],
+['M-052','Hâce Bâlî Mescidi','Mescit','Hâce Bâlî tarafından yapılmış mesciddir.'],
+['M-053','Hâce İshak Mescidi','Mescit','Hâce İshak tarafından yapılmış mesciddir.'],
+['M-054','Hâce Siyâh Mescidi','Mescit','Hâce Siyâh tarafından yapılmış mesciddir.'],
+['M-055','Hace Bâyezîd Mescidi','Mescit','Hace Bâyezîd tarafından yapılmış mesciddir.'],
+['M-056','Hacı İslâm Mescidi','Mescit','Hacı İslâm tarafından yapılmış mesciddir.'],
+['M-057','Hâcı Safâ Mescidi','Mescit','Hâcı Safâ tarafından yapılmış mesciddir.'],
+['M-058','Hâcı Hasan Mescidi','Mescit','Hâcı Hasan tarafından yapılmış mesciddir.'],
+['M-059','Hâcı Mercimek Mescidi','Mescit','Hâcı Mercimek tarafından yapılmış mesciddir.'],
+['M-060','Hâcı Doğan Mescidi','Mescit','Hâcı Doğan tarafından yapılmış mesciddir.'],
+['M-061','Hâcı Yakûb Mescidi','Mescit','Hâcı Yakûb tarafından yapılmış mesciddir.'],
+['M-062','Hâcce Hoşkadem Mescidi','Mescit','Hâcce Hoşkadem tarafından yapılmış mesciddir.'],
+['M-063','Hâfız Ahmed Mescidi','Mescit','Hâfız Ahmed tarafından yapılmış mesciddir.'],
+['M-064','Hadım Balaban Mescidi','Mescit','Hadım Balaban tarafından yapılmış mesciddir.'],
+['M-065','Hadım Fîrûz Mescidi','Mescit','Hadım Fîrûz tarafından yapılmış mesciddir.'],
+['M-066','Hadım Timurtaş Mescidi','Mescit','Hadım Timurtaş tarafından yapılmış mesciddir.'],
+['M-067','Yaya Timurtaş Mescidi','Mescit','Yaya Timurtaş tarafından yapılmış mesciddir.'],
+['M-068','Baba Timurtaş Mescidi','Mescit','Baba Timurtaş tarafından yapılmış mesciddir.'],
+['M-069','Emîr Şâh Mescidi','Mescit','Emîr Şâh tarafından yapılmış mesciddir.'],
+['M-070','Sefer Şâh Mescidi','Mescit','Sefer Şâh tarafından yapılmış mesciddir.'],
+['M-071','Devletşâh Mescidi','Mescit','Devletşâh tarafından yapılmış mesciddir.'],
+['M-072','Gülbahar Hâtun Mescidi','Mescit','Gülbahar Hâtun tarafından yapılmış mesciddir.'],
+['M-073','Selçuk Hâtun Mescidi','Mescit','Selçuk Hâtun tarafından yapılmış mesciddir.'],
+['M-074','Âşûbe Hâtun Mescidi','Mescit','Âşûbe Hâtun tarafından yapılmış mesciddir.'],
+['M-075','Bezirci Hâtun Mescidi','Mescit','Bezirci Hâtun tarafından yapılmış mesciddir.'],
+['M-076','Bülbül Hâtun Mescidi','Mescit','Bülbül Hâtun tarafından yapılmış mesciddir.'],
+['M-077','Sittî Hâtun Mescidi','Mescit','Sittî Hâtun tarafından yapılmış mesciddir.'],
+['M-078','Ömer Baba Mescidi','Mescit','Ömer Baba tarafından yapılmış mesciddir.'],
+['M-079','Kıyak Baba Mescidi','Mescit','Kıyak Baba tarafından yapılmış mesciddir.'],
+['M-080','Helvacı Baba Mescidi','Mescit','Helvacı Baba tarafından yapılmış mesciddir.'],
+['M-081','Kösec Balaban Mescidi','Mescit','Kösec Balaban tarafından yapılmış mesciddir.'],
+['M-082','Turgut Bâzergân Mescidi','Mescit','Turgut Bâzergân tarafından yapılmış mesciddir.'],
+['M-083','Nişdoğan Mescidi','Mescit','Nişdoğan adıyla bilinen mesciddir.'],
+['M-084','Kunduk Osmân Mescidi','Mescit','Kunduk Osmân tarafından yapılmış mesciddir.'],
+['M-084b','Abdurrahmân Mescidi','Mescit','Abdurrahmân tarafından yapılmış mesciddir.'],
+['M-086','Fanfan Mescidi','Mescit','Fanfan adıyla bilinen mesciddir.'],
+['M-087','Dağdeviren Mescidi','Mescit','Dağdeviren adıyla bilinen mesciddir.'],
+['M-088','Zehrimâr Mescidi','Mescit','Zehrimâr adıyla bilinen mesciddir.'],
+['M-089','Üsküfçü Hızır Mescidi','Mescit','Üsküfçü Hızır tarafından yapılmış mesciddir.'],
+['M-090','Yakûb Kilârî Mescidi','Mescit','Yakûb Kilârî tarafından yapılmış mesciddir.'],
+['M-091','Kebe Yapıcı Mescidi','Mescit','Kebe Yapıcı adıyla bilinen mesciddir.'],
+['M-092','Papasoğlu Mescidi','Mescit','Papasoğlu adıyla bilinen mesciddir.'],
+['M-093','Şâh Mehmed Mescidi','Mescit','Şâh Mehmed tarafından yapılmış mesciddir.'],
+['M-094','Yancıkcı Şâhîn Mescidi','Mescit','Yancıkcı Şâhîn tarafından yapılmış mesciddir.'],
+['M-095','Karaca Bevvâb Mescidi','Mescit','Karaca Bevvâb tarafından yapılmış mesciddir.'],
+['M-096','Sâbûnî Mescidi','Mescit','Sâbûnî adıyla bilinen mesciddir.'],
+['M-097','Vâvlı Mescidi','Mescit','Vâvlı adıyla bilinen mesciddir.'],
+['M-098','Sûfî İlyas Mescidi','Mescit','Sûfî İlyas tarafından yapılmış mesciddir.'],
+['M-099','Kiremitçi Hacı Halîl Mescidi','Mescit','Kiremitçi Hacı Halîl tarafından yapılmış mesciddir.'],
+['M-100','Sıkça Murâd Mescidi','Mescit','Sıkça Murâd adıyla bilinen mesciddir.'],
+['M-101','Kızıl Minare Mescidi','Mescit','Kızıl Minare adıyla bilinen mesciddir.'],
+['M-102','Kâtib-i Cev Mescidi','Mescit','Kâtib-i Cev tarafından yapılmış mesciddir.'],
+['M-103','Altûnî Mescidi','Mescit','Altûnî adıyla bilinen mesciddir.'],
+['M-104','Arpacı Hamza Mescidi','Mescit','Arpacı Hamza tarafından yapılmış mesciddir.'],
+['M-105','Zincirlikuyu Mescidi','Mescit','Zincirlikuyu adıyla bilinen mesciddir.'],
+['M-106','Ali Kuş Mescidi','Mescit','Ali Kuş tarafından yapılmış mesciddir.'],
+['M-107','Kazzâz Sâlih Mescidi','Mescit','Kazzâz Sâlih tarafından yapılmış mesciddir.'],
+['M-108','Zen-i Fîrûz Mescidi','Mescit','Zen-i Fîrûz tarafından yapılmış mesciddir.'],
+['M-109','Külâhdûz Mescidi','Mescit','Külâhdûz adıyla bilinen mesciddir.'],
+['M-110','Dârü\'s-siyâde Mescidi','Mescit','Dârü\'s-siyâde mescididir.'],
+['M-111','Kavaklı Mescidi','Mescit','Kavaklı adıyla bilinen mesciddir.'],
+['M-112','Eskici Hamza Mescidi','Mescit','Eskici Hamza tarafından yapılmış mesciddir.'],
+['M-113','Unnâblı Mescidi','Mescit','Unnâblı adıyla bilinen mesciddir.'],
+['M-114','Seyfullâh Mescidi','Mescit','Seyfullâh tarafından yapılmış mesciddir.'],
+['M-115','İbni Arab Mescidi','Mescit','İbni Arab tarafından yapılmış mesciddir.'],
+['M-116','Attâr Hâcı Halîl Mescidi','Mescit','Attâr Hâcı Halîl tarafından yapılmış mesciddir.'],
+['M-117','Debbâğ Hacı Halîl Mescidi','Mescit','Debbâğ Hacı Halîl tarafından yapılmış mesciddir.'],
+['M-118','Hatîb Mescidi','Mescit','Hatîb adıyla bilinen mesciddir.'],
+['M-119','Karaca Ahmed Mescidi','Mescit','Karaca Ahmed tarafından yapılmış mesciddir.'],
+['M-121','Karabulut Mescidi','Mescit','Karabulut Mahallesinde bulunan mesciddir.'],
+['M-122','Dervîş Âbî Mescidi','Mescit','Dervîş Âbî tarafından yapılmış mesciddir.'],
+['M-123','Mihalkoç Mescidi','Mescit','Mihalkoç Mahallesinde bulunan mesciddir.'],
+['M-124','Parmaklı Câmii','Mescit','Parmaklı adıyla bilinen câmidir.'],
+['M-125','Emîr Mescidi','Mescit','Emîr adıyla bilinen mesciddir.'],
+['M-126','Taşçı Kasım Mescidi','Mescit','Taşçı Kasım tarafından yapılmış mesciddir.'],
+['M-127','Begce Mescidi','Mescit','Begce adıyla bilinen mesciddir.'],
+['M-128','Mûytâblar Mescidi','Mescit','Mûytâblar çarşısı civarında bulunan mesciddir.'],
+['M-129','Hamîd Bey Mescidi','Mescit','Hamîd Bey tarafından yapılmış mesciddir.'],
+['M-130','Tarakçılar Mescidi','Mescit','Tarakçılar çarşısı civarında bulunan mesciddir.'],
+['M-131','Akpınarlıoğlu Mescidi','Mescit','Akpınarlıoğlu tarafından yapılmış mesciddir.'],
+['M-132','Arabacılar Mescidi','Mescit','Arabacılar adıyla bilinen mesciddir.'],
+['M-133','Saçlı Ali Mescidi','Mescit','Saçlı Ali tarafından yapılmış mesciddir.'],
+['M-134','Karaca Hacı Halil Mescidi','Mescit','Karaca Hacı Halil tarafından yapılmış mesciddir.'],
+['M-135','Kâhtalu Mescidi','Mescit','Kâhtalu adıyla bilinen mesciddir.'],
+['M-136','Köhne Kadı Mescidi','Mescit','Köhne Kadı adıyla bilinen mesciddir.'],
+['T-01','Mevlevî Tekkesi','Tekke','Mevlevîhâne; Sultân Murâd-ı Sânî\'nin Murâdiye Câmii yanında yaptırdığı tekkedir.'],
+['T-02','Sezâyî Tekkesi','Tekke','Sezâyî adıyla bilinen tekke ve dergâhtır.'],
+['T-03','Kâdirîhâne Tekkesi','Tekke','Kâdirî tarikatına ait tekke ve dergâhtır.'],
+['T-04','Kabûlî Tekkesi','Tekke','Kabûlî adıyla bilinen tekkedir.'],
+['T-05','Saçlı İbrâhîm Efendi Tekkesi','Tekke','Saçlı İbrâhîm Efendi\'ye ait tekkedir.'],
+['T-06','Çoban Ali Efendi Tekkesi','Tekke','Çoban Ali Efendi\'ye ait tekkedir.'],
+['T-07','Veli Dede Tekkesi','Tekke','Veli Dede\'ye ait tekkedir.'],
+['T-08','Sivâsî Tekkesi','Tekke','Sivâsî tarikatına ait tekkedir.'],
+['T-09','Hacı Memi Tekkesi','Tekke','Hacı Memi\'ye ait tekkedir.'],
+['T-10','Şeyh Davud Efendi Tekkesi','Tekke','Şeyh Davud Efendi\'ye ait tekkedir.'],
+['T-11','Ali Paşa Tekkesi','Tekke','Ali Paşa tarafından yaptırılmış tekkedir.'],
+['T-12','Salı Tekkesi','Tekke','Salı adıyla bilinen tekkedir.'],
+['T-13','Sa\'dî Tekkesi','Tekke','Sa\'dî tarikatına ait tekkedir.'],
+['T-14','Beylerbeyi Tekkesi','Tekke','Beylerbeyi tarafından yaptırılmış tekkedir.'],
+['T-15','Mestçizâde Tekkesi','Tekke','Mestçizâde\'ye ait tekkedir.'],
+['T-16','Arabzâde Tekkesi','Tekke','Arabzâde\'ye ait tekkedir.'],
+['T-17','Topçu Baba Tekkesi','Tekke','Topçu Baba\'ya ait tekkedir.'],
+['T-18','Şeyh Semâhaddîn Tekkesi','Tekke','Şeyh Semâhaddîn\'e ait tekkedir.'],
+['T-19','Debbâğhâne Tekkesi','Tekke','Debbâğhâne civarında bulunan tekkedir.'],
+['T-20','Yeni Tekke','Tekke','Yeni adıyla adlandırılan tekkedir.'],
+['T-21','Küştî-gîrân Tekkesi','Tekke','Güreş ehlinin tekkesidir.'],
+['T-22','Hacı Alemüddîn Tekkesi','Tekke','Hacı Alemüddîn\'e ait tekkedir.'],
+['T-23','Nakşî Tekkesi','Tekke','Nakşibendî tarikatına ait tekkedir.'],
+['T-24','Şâh Kadın Tekkesi','Tekke','Şâh Kadın\'a ait tekkedir.'],
+['T-25','Germekaş Tekkesi','Tekke','Germekaş adıyla bilinen tekkedir.'],
+['T-26','Uşşâkî Çizmeci Şeyh Tekkesi','Tekke','Uşşâkî tarikatından Çizmeci Şeyh\'e ait tekkedir.'],
+['T-27','Şeyh Muslihuddîn Tekkesi','Tekke','Şeyh Muslihuddîn\'e ait tekkedir.'],
+['T-28','Ramazân Halîfe Tekkesi','Tekke','Ramazân Halîfe\'ye ait tekkedir.'],
+['T-29','Koyun Baba Tekkesi','Tekke','Koyun Baba\'ya ait tekkedir.'],
+['T-30','Himmet Dede Tekkesi','Tekke','Himmet Dede\'ye ait tekkedir.'],
+['T-31','Rufâî Tekkesi (1)','Tekke','Rufâî tarikatına ait birinci tekkedir.'],
+['T-32','Güzelce Baba Tekkesi','Tekke','Güzelce Baba\'ya ait tekkedir.'],
+['T-33','Kaplan Baba Tekkesi','Tekke','Kaplan Baba\'ya ait tekkedir.'],
+['T-34','Hindîler Tekkesi','Tekke','Hint dervişlerine ait tekkedir.'],
+['T-35','Yediler Tekkesi','Tekke','Yediler adıyla bilinen tekkedir.'],
+['T-36','Kanber Ayağı Tekkesi','Tekke','Kanber Ayağı adıyla bilinen tekkedir.'],
+['T-37','Senâyî Efendi Tekkesi','Tekke','Senâyî Efendi\'ye ait tekkedir.'],
+['T-38','Abdülbâkî Efendi Tekkesi','Tekke','Abdülbâkî Efendi\'ye ait tekkedir.'],
+['T-39','Rufâî Tekkesi (2)','Tekke','Rufâî tarikatına ait ikinci tekkedir.'],
+['T-40','Tekke (isimsiz)','Tekke','Adı bilinmeyen tekkedir.'],
+['T-41','Halazâde Tekkesi','Tekke','Halazâde\'ye ait tekkedir.'],
+['T-42','Aygır Baba Tekkesi','Tekke','Aygır Baba\'ya ait tekkedir.'],
+['T-43','Şerbetdâr Zâviyesi Tekkesi','Tekke','Şerbetdâr zâviyesine ait tekkedir.'],
+['T-44','Hıdırlık Tekkesi','Tekke','Hıdırlık mevkiinde bulunan tekkedir.'],
+['T-45','Şeyh Fazlullah Tekkesi','Tekke','Mahv ü münderis olmuş, yeri bilinemeyen tekkedir.'],
+['T-46','Vâiz Mahmûd Efendi Tekkesi','Tekke','Mahv ü münderis olmuş tekkedir.'],
+['T-47','Şeyh Rıdvân (Hacı Ömer) Tekkesi','Tekke','Şeyh Rıdvân nâm-ı diğer Hacı Ömer Tekkesi, mahv ü münderis olmuştur.'],
+['T-48','Şeyh Bâyezîd Tekkesi','Tekke','Mahv ü münderis olmuş tekkedir.'],
+['T-49','Zindanî Mehmed Efendi Tekkesi','Tekke','Mahv ü münderis olmuş tekkedir.'],
+['T-50','Şeyh Sinân Tekkesi','Tekke','Mahv ü münderis olmuş tekkedir.'],
+['T-51','Çelebi Şeyh Tekkesi','Tekke','Mahv ü münderis olmuş tekkedir.'],
+['T-52','İbrâhîm Paşa Tekkesi','Tekke','İbrâhîm Paşa\'ya ait, mahv ü münderis olmuş tekkedir.'],
+['T-53','Osmân Dede Tekkesi','Tekke','Mahv ü münderis olmuş tekkedir.'],
+['T-54','Karabaş Süleymân Ağa Tekkesi','Tekke','Mahv ü münderis olmuş tekkedir.'],
+['T-55','Kassâbbaşı Süleymân Ağa Tekkesi','Tekke','Mahv ü münderis olmuş tekkedir.'],
+['T-56','Seyyâhîn Musa Baba Tekkesi','Tekke','Mahv ü münderis olmuş tekkedir.'],
+['MD-01','Kurrâ Medresesi','Medrese','Kurrâ eğitimine yönelik medresedir.'],
+['MD-02','Müderris Medresesi','Medrese','Müderrisler için kurulmuş medresedir.'],
+['MD-03','Sultân Bâyezîd Medresesi','Medrese','Sultân Bâyezîd tarafından yaptırılmış medresedir.'],
+['MD-04','Dârü\'l-Hadîs Medresesi','Medrese','Hadîs ilimleri eğitimine yönelik medresedir.'],
+['MD-05','Üçşerefeli Saatli Medresesi','Medrese','Üç Şerefeli Câmii\'ne bağlı, saatli bölümüyle tanınan medresedir.'],
+['MD-06','Üçşerefeli Peykler Medresesi','Medrese','Üç Şerefeli Câmii\'ne bağlı peyke medresesidir.'],
+['MD-07','Câmi-i Atîk Medresesi','Medrese','Çarşıda Hurdacılar Sokağının 4. numarasında Musa Çelebi tarafından yapılmış medresedir. Eski Câmi Medresesi adıyla da bilinir.'],
+['MD-08','Halebî Medresesi','Medrese','Ermeniyân-ı Ayanikola Mahallesinde Keçeciler Kapısı Caddesinin 38. numarasında vâki medresedir. El-yevm hâlî arsadır.'],
+['MD-09','Taşlık Medresesi','Medrese','Medrese-i Ali Bey Mahallesinde Taşlıkbayırı Sokağının 13. numarasında Mahmûd Paşa\'nın oğlu Ali Bey tarafından yapılmış medresedir.'],
+['MD-10','Sarıca Paşa Medresesi','Medrese','Sarıca Paşa Mahallesinde Sarıca Paşa Camii Sokağının 8. numarasında vâki medresedir.'],
+['MD-11','Meydân Medresesi','Medrese','Karabulut Mahallesinde Karabulut Caddesinin 47. numarasında İsmâîl Bey tarafından yaptırılmış, 869 tarihli vakfiyesi olan medresedir.'],
+['MD-12','İbrâhîm Paşa Medresesi','Medrese','İbrâhîm Paşa Mahallesinde Çokalcı Sokağının 37. numarasında İbrâhîm Paşa tarafından yapılmış medresedir. 1294 istîlâsında yıkılmıştır.'],
+['MD-13','Küçük Lâleli Medresesi','Medrese','Çarşıda Lâleli Medresesi Sokağının 2. numarasında 948 tarihinde Çukacı Hacı İlyas tarafından yapılmış medresedir.'],
+['MD-14','Beylerbeyi Medresesi','Medrese','Mîrimîrân Mahallesinde Arpakârbân Sokağının 31. numarasında bulunan medresedir.'],
+['MD-15','Topkapısı Medresesi','Medrese','Topkapısı civarında bulunan medresedir.'],
+['MD-16','Şeyhî Çelebi Medresesi','Medrese','Şeyhî Çelebi tarafından yapılmış medresedir.'],
+['MD-17','Hacı Alemüddîn Medresesi','Medrese','Hacı Alemüddîn tarafından yapılmış medresedir.'],
+['MD-18','Şeyh Şücâuddîn Medresesi','Medrese','Şeyh Şücâuddîn\'e ait medresedir.'],
+['MD-19','Şah Melik Medresesi','Medrese','Şah Melik tarafından yapılmış medresedir.'],
+['MD-20','Kadı Fahreddîn Medresesi','Medrese','Kadı Fahreddîn tarafından yapılmış medresedir.'],
+['MD-21','Ekmekçi Köylü Medresesi','Medrese','Ekmekçi Köylü adıyla bilinen medresedir.'],
+['MD-22','Bevvâb Sinân Medresesi','Medrese','Bevvâb Sinân tarafından yapılmış medresedir.'],
+['MD-23','Dersiâm Medresesi','Medrese','Dersiâm adıyla bilinen medresedir.'],
+['MD-24','Yediyol Ağzı Medresesi','Medrese','Yediyol kavşağı civarındaki medresedir.'],
+['MD-25','Seyfullâh Medresesi','Medrese','Seyfullâh tarafından yapılmış medresedir.'],
+['MD-26','Lâleli Medresesi','Medrese','Lâleli Mahallesindeki medresedir.'],
+['MD-27','Koğacılar Medresesi','Medrese','Koğacılar çarşısı civarındaki medresedir.'],
+['MD-28','Defterdâr Medresesi','Medrese','Defterdâr tarafından yapılmış medresedir.'],
+['MD-29','Necâtiye Medresesi','Medrese','Necâtiye adıyla bilinen medresedir.'],
+['MD-30','Hayriyye Medresesi','Medrese','Hayriyye adıyla bilinen medresedir.'],
+['MD-31','Hacı Doğan Medresesi','Medrese','Hacı Doğan tarafından yapılmış medresedir.'],
+['MD-32','Emîr Kadı Medresesi','Medrese','Emîr Kadı tarafından yapılmış medresedir.'],
+['MD-33','Oruç Paşa Medresesi','Medrese','Oruç Paşa tarafından yapılmış medresedir.'],
+['MD-34','Kadı Abdi / Sinân Bey Medresesi','Medrese','Kadı Abdi ve Sinân Bey\'e ait medresedir.'],
+['MD-35','Anbar Kadı Medresesi','Medrese','Anbar Kadı tarafından yapılmış medresedir.'],
+['MD-36','Tütünsüz Medresesi','Medrese','Tütünsüz adıyla bilinen medresedir.'],
+['MD-37','Ali Kuşî Medresesi','Medrese','Ali Kuşî\'ye ait medresedir.'],
+['MD-38','Mesûdiye Medresesi','Medrese','Mesûdiye adıyla bilinen medresedir.'],
+['MD-39','Arpa Emini Medresesi','Medrese','Arpa Emini tarafından yapılmış medresedir.'],
+['MD-40','Abdülvâsi\' Medresesi','Medrese','Abdülvâsi\' tarafından yapılmış medresedir.'],
+['MD-41','İlyâs Bey Medresesi','Medrese','İlyâs Bey\'e ait medresedir.'],
+['MD-42','İlyas Kethudâ Medresesi','Medrese','İlyas Kethudâ\'ya ait medresedir.'],
+['MD-43','Emîr Ali Medresesi','Medrese','Emîr Ali\'ye ait medresedir.'],
+['MD-44','Bedreddîn Medresesi','Medrese','Bedreddîn\'e ait medresedir.'],
+['MD-45','Şeyh Mahmûd el-Kâdî Medresesi','Medrese','Şeyh Mahmûd el-Kâdî\'ye ait medresedir.'],
+['MD-46','Kemâl Dede Medresesi','Medrese','Kemâl Dede\'ye ait medresedir.'],
+['MD-47','Ahî Çelebi Medresesi','Medrese','Ahî Çelebi\'ye ait medresedir.'],
+['MD-48','Miskîn Sefer Şâh Medresesi','Medrese','Miskîn Sefer Şâh\'a ait medresedir.'],
+['MD-49','Kâsım Paşa Medresesi','Medrese','Kâsım Paşa tarafından yapılmış medresedir.'],
+['TR-01','Bâyezîd Halîfe Merkadi','Türbe','Bâyezîd Halîfe\'ye ait merkad.'],
+['TR-02','Üçler Türbesi','Türbe','Üç velîye ait türbedir.'],
+['TR-03','Kıyak Baba Türbesi','Türbe','Kıyak Baba\'ya ait türbedir.'],
+['TR-04','Karaca Ahmed Türbesi','Türbe','Karaca Ahmed\'e ait türbedir.'],
+['TR-05','Helvacı Baba Türbesi','Türbe','Helvacı Baba\'ya ait türbedir.'],
+['TR-06','Güzelce Baba Türbesi','Türbe','Güzelce Baba\'ya ait türbedir.'],
+['TR-07','Baba Şücâ\' Türbesi','Türbe','Baba Şücâ\'a ait türbedir.'],
+['TR-08','Balcı Baba ve İsmâîl Baba Türbesi','Türbe','Balcı Baba ve İsmâîl Baba\'ya ait türbedir.'],
+['TR-09','Eğlence Baba Türbesi','Türbe','Eğlence Baba\'ya ait türbedir.'],
+['TR-10','Yatağan Baba Türbesi','Türbe','Yatağan Baba\'ya ait türbedir.'],
+['TR-11','Mumya Baba Türbesi','Türbe','Mumya Baba\'ya ait türbedir.'],
+['TR-12','Topçu Baba Türbesi','Türbe','Topçu Baba\'ya ait türbedir.'],
+['TR-13','Balaban Baba Türbesi','Türbe','Balaban Baba\'ya ait türbedir.'],
+['TR-14','Bahri Baba Türbesi','Türbe','Bahri Baba\'ya ait türbedir.'],
+['TR-15','Mumcu Baba Türbesi','Türbe','Mumcu Baba\'ya ait türbedir.'],
+['TR-16','Saka Baba Türbesi','Türbe','Saka Baba\'ya ait türbedir.'],
+['TR-17','Boyacı Baba Türbesi','Türbe','Boyacı Baba\'ya ait türbedir.'],
+['TR-18','Zindânî Mehmed Efendi Türbesi','Türbe','Zindânî Mehmed Efendi\'ye ait türbedir.'],
+['TR-19','Cafer Baba Türbesi (1)','Türbe','Cafer Baba\'ya ait birinci türbedir.'],
+['TR-20','Kanber Baba Türbesi','Türbe','Kanber Baba\'ya ait türbedir.'],
+['TR-21','Yunus Baba Türbesi','Türbe','Yunus Baba\'ya ait türbedir.'],
+['TR-22','Kaplan Baba Türbesi','Türbe','Kaplan Baba\'ya ait türbedir.'],
+['TR-23','Cafer Baba Türbesi (2)','Türbe','Cafer Baba\'ya ait ikinci türbedir.'],
+['TR-24','Tütünsüz Ahmed Bey Türbesi','Türbe','Tütünsüz Ahmed Bey\'e ait türbedir.'],
+['TR-25','İshak Baba Türbesi','Türbe','İshak Baba\'ya ait türbedir.'],
+['TR-26','Bayram Baba Türbesi','Türbe','Bayram Baba\'ya ait türbedir.'],
+['TR-27','Çıkrıkçı Baba Türbesi','Türbe','Çıkrıkçı Baba\'ya ait türbedir.'],
+['TR-28','Timur Baba Türbesi','Türbe','Timur Baba\'ya ait türbedir.'],
+['TR-29','Mûsâ Baba Türbesi','Türbe','Mûsâ Baba\'ya ait türbedir.'],
+['TR-30','Toplu Baba Türbesi','Türbe','Toplu Baba\'ya ait türbedir.'],
+['TR-31','Telli Baba Türbesi','Türbe','Telli Baba\'ya ait türbedir.'],
+['TR-32','Haydar Baba Türbesi','Türbe','Haydar Baba\'ya ait türbedir.'],
+['TR-33','Orman Baba Türbesi','Türbe','Orman Baba\'ya ait türbedir.'],
+['TR-34','Turgut Baba Türbesi','Türbe','Turgut Baba\'ya ait türbedir.'],
+['TR-35','Nazar Baba Türbesi','Türbe','Nazar Baba\'ya ait türbedir.'],
+['TR-36','Osmân Baba Türbesi','Türbe','Osmân Baba\'ya ait türbedir.'],
+['TR-38','Hilâlî Baba Türbesi','Türbe','Hilâlî Baba\'ya ait türbedir.'],
+['TR-39','Yahşî Kalender Türbesi','Türbe','Yahşî Kalender\'e ait türbedir.'],
+['TR-40','Seyyid Celâlî Türbesi','Türbe','Seyyid Celâlî\'ye ait türbedir.'],
+['TR-41','Karga Baba Türbesi','Türbe','Karga Baba\'ya ait türbedir.'],
+['TR-42','Üsküfçü Hızır Türbesi','Türbe','Manzûme hâricinde bulunan Üsküfçü Hızır türbesidir.'],
+['TR-43','Sûfî İlyas Türbesi','Türbe','Manzûme hâricinde Sûfî İlyas türbesidir.'],
+['TR-44','Islâhî Mehmed Efendi Türbesi','Türbe','Islâhî Mehmed Efendi türbesidir.'],
+['TR-45','Tuğlalı Baba Türbesi','Türbe','Tuğlalı Baba\'ya ait türbedir.'],
+['TR-46','Alemdâr Hasan Baba Türbesi','Türbe','Alemdâr Hasan Baba\'ya ait türbedir.'],
+['TR-47','Kesikbaş Türbesi','Türbe','Kesikbaş adıyla bilinen türbedir.'],
+['TR-48','Sıkça Murâd Mahallesi Türbesi','Türbe','Sıkça Murâd Camii Sokağında bulunan türbedir.'],
+['TR-49','Abdi Baba Türbesi','Türbe','Abdi Baba\'ya ait türbedir.'],
+['TR-50','Huysuz Baba Türbesi','Türbe','Huysuz Baba\'ya ait türbedir.'],
+['TR-51','Seyyid Ali Efendi Türbesi','Türbe','Seyyid Ali Efendi\'ye ait türbedir.'],
+['TR-55','Tavla Baba Türbesi','Türbe','Tavla Baba\'ya ait türbedir.'],
+['TR-56','Tirid Baba Türbesi','Türbe','Tirid Baba\'ya ait türbedir.'],
+['TR-57','Dervîş Âbî Türbesi','Türbe','Dervîş Âbî\'ye ait türbedir.'],
+['TR-60','Cafer Baba Türbesi (3)','Türbe','Cafer Baba\'ya ait üçüncü türbedir.'],
+['TR-61','Yediler Türbesi','Türbe','Yediler adıyla bilinen türbedir.'],
+['TR-62','Taraklı Baba Türbesi','Türbe','Taraklı Baba\'ya ait türbedir.'],
+['I-01','Murâdiye İmâreti','İmaret','Sultân Murâd-ı Sânî\'nin Murâdiye Câmii bitişiğindeki imârettir.'],
+['I-02','Yeni İmâret','İmaret','Sultân Bâyezîd-i Sânî külliyesindeki imârettir.'],
+['I-03','Orta İmâret','İmaret','Ortada yer alan imârettir.'],
+['I-04','Yıldırım İmâreti','İmaret','Yıldırım Bâyezîd\'e ait imârettir.'],
+['I-05','Seyyidler İmâreti','İmaret','Seyyidler adıyla bilinen imârettir.'],
+['I-06','İbrâhîm Paşa İmâreti','İmaret','İbrâhîm Paşa tarafından yaptırılmış imârettir.'],
+['I-07','Balaban Paşa İmâreti','İmaret','Balaban Paşa tarafından yaptırılmış imârettir.'],
+['I-08','Evliya Kasım Paşa İmâreti','İmaret','Evliya Kasım Paşa tarafından yaptırılmış imârettir.'],
+['I-09','Mezîd Bey İmâreti','İmaret','Mezîd Bey tarafından yaptırılmış imârettir.'],
+['MK-01','Hamîdî Sanâyi Mektebi','Mektep','Hamîdî adıyla bilinen sanat okulu.'],
+['MK-02','Mekteb-i İdâdî-i Askerî','Mektep','Askerî idadî mektebidir.'],
+['MK-03','Muhtelit Mekteb-i İdâdî-i Mülkî','Mektep','Karma mülkî idadî mektebidir.'],
+['MK-04','Askerî Mekteb-i Rüşdîsi','Mektep','Askerî rüşdiye mektebidir.'],
+['MK-05','İkinci Mekteb-i Rüşdî-i Mülkî','Mektep','İkinci mülkî rüşdiye mektebidir.'],
+['MK-06','Makaralı Mekteb','Mektep','Makaralı adıyla bilinen mekteptir.'],
+['MK-07','Defterdâr Mahmûd Efendi Mektebi','Mektep','Defterdâr Mahmûd Efendi tarafından yapılmış mekteptir.'],
+['MK-08','Üç Şerefeli Mektebi (1)','Mektep','Üç Şerefeli Câmii\'ne bağlı birinci mekteptir.'],
+['MK-09','Taş Mekteb','Mektep','Taş yapısıyla tanınan mekteptir.'],
+['MK-10','Üç Şerefeli Mektebi (2)','Mektep','Üç Şerefeli Câmii\'ne bağlı ikinci mekteptir.'],
+['MK-11','Yıldırım Mektebi','Mektep','Yıldırım Mahallesindeki mekteptir.'],
+['MK-12','Sultân Selîm Mektebi','Mektep','Sultân Selîm külliyesine bağlı mekteptir.'],
+['MK-13','Çiçekli Mekteb','Mektep','Çiçekli adıyla bilinen mekteptir.'],
+['MK-14','Eski Tophâne Mektebi','Mektep','Eski Tophâne civarındaki mekteptir.'],
+['MK-15','Çardaklı Mekteb','Mektep','Çardaklı adıyla bilinen mekteptir.'],
+['MK-16','Taşlık Mektebi','Mektep','Taşlık Mahallesindeki mekteptir.'],
+['MK-17','Kadriye Mektebi','Mektep','Kadriye adıyla bilinen mekteptir.'],
+['MK-18','Kassâbzâde Çavuş Mektebi','Mektep','Kassâbzâde Çavuş tarafından yapılmış mekteptir.'],
+['MK-19','Has Fırın Mektebi','Mektep','Has Fırın civarındaki mekteptir.'],
+['MK-20','Tahmîs Mektebi','Mektep','Tahmîs çarşısı civarındaki mekteptir.'],
+['MK-21','Yeşil Mekteb','Mektep','Yeşil adıyla bilinen mekteptir.'],
+['MK-22','Sinân Paşa Mektebi','Mektep','Sinân Paşa tarafından yapılmış mekteptir.'],
+['MK-23','Kara Hafız Mektebi','Mektep','Kara Hafız tarafından yapılmış mekteptir.'],
+['MK-26','Kadı Rükneddîn Mektebi','Mektep','Kadı Rükneddîn tarafından yapılmış mekteptir.'],
+['MK-27','Yeşilce Mektebi','Mektep','Yeşilce Mahallesindeki mekteptir.'],
+['MK-28','Kanlıpınar Mektebi','Mektep','Kanlıpınar adıyla bilinen mekteptir.'],
+['MK-29','Köprübaşı Mektebi','Mektep','Köprü başındaki mekteptir.'],
+['MK-30','Konyalı Mektebi','Mektep','Konyalı adıyla bilinen mekteptir.'],
+['MK-31','Debbâğhâne Mektebi','Mektep','Debbâğhâne civarındaki mekteptir.'],
+['MK-32','Buhûrî Mehmed Efendi Mektebi','Mektep','Buhûrî Mehmed Efendi tarafından yapılmış mekteptir.'],
+['MK-33','Hacı Burnaz Mektebi','Mektep','Hacı Burnaz tarafından yapılmış mekteptir.'],
+['MK-34','Cafer Ağa Mektebi','Mektep','Cafer Ağa tarafından yapılmış mekteptir.'],
+['MK-35','İnâs Mektebi','Mektep','Kız öğrencilere yönelik mekteptir.'],
+['MK-36','Hundî Hatun Mektebi','Mektep','Hundî Hatun tarafından yapılmış mekteptir.'],
+['MK-38','Hüsâm Bey Mektebi','Mektep','Hüsâm Bey tarafından yapılmış mekteptir.'],
+['MK-40','Hâce İlyas Mektebi','Mektep','Hâce İlyas tarafından yapılmış mekteptir.'],
+['MK-41','Mihalkoç Mahallesi Mektebi','Mektep','Mihalkoç Mahallesinde Sultân Bâyezîd Caddesindeki mekteptir.'],
+['MK-42','Hadım Fîrûz Mahallesi Mektebi','Mektep','Hadım Fîrûz Mahallesinde Zerdesakal Sokağındaki mekteptir.'],
+['MK-43','Emîrşâh Mahallesi Mektebi (1)','Mektep','Emîrşâh Mahallesinde Sultân Bâyezîd Caddesindeki mekteptir.'],
+['MK-44','Emîrşâh Mahallesi Mektebi (2)','Mektep','Emîrşâh Mahallesinde Alaca Câmi Sokağındaki mekteptir.'],
+['MK-45','Nazar Baba Mektebi','Mektep','Nazar Baba adıyla bilinen mekteptir.'],
+['MK-46','Hacı Ömer Mektebi','Mektep','Hacı Ömer tarafından yapılmış mekteptir.'],
+['MK-47','İhmâl Paşa Mektebi','Mektep','İhmâl Paşa\'ya ait mekteptir.'],
+['MK-48','Saraçlar Mektebi','Mektep','Saraçlar çarşısı civarındaki mekteptir.'],
+['MK-49','Eski Câmi Mektebi','Mektep','Eski Câmi\'ye bağlı mekteptir.'],
+['MK-50','Mevlânâ Abdülkerîm Mektebi','Mektep','Mevlânâ Abdülkerîm tarafından yapılmış mekteptir.'],
+['MK-51','Ayşe Kadın Mektebi','Mektep','Ayşe Kadın\'a ait mekteptir.'],
+['MK-52','Gürecinin Mektebi','Mektep','Gürecinin adıyla bilinen mekteptir.'],
+['MK-53','Çelebioğlu Dershânesi','Mektep','Çelebioğlu\'na ait dershânedir.'],
+['MK-RUM','Rum Milletine Mahsûs Mektepler','Mektep','Rum cemaatine ait mektepler grubudur.'],
+['MK-BUL','Bulgar Milletine Mahsûs Mektepler','Mektep','Bulgar cemaatine ait mektepler grubudur.'],
+['MK-ERM','Ermeni Milletine Mahsûs Mektepler','Mektep','Ermeni cemaatine ait mektepler grubudur.'],
+['MK-YAH','Yahûdî Milletine Mahsûs Mektepler','Mektep','Yahudi cemaatine ait mektepler grubudur.'],
+['CA-01','Ali Paşa Çarşısı','Çarşı','Semiz Ali Paşa tarafından yaptırılan büyük kapalı çarşıdır.'],
+['CA-02','Büyük Arasta','Çarşı','Büyük Arasta adıyla bilinen kapalı dükkanlar dizisidir.'],
+['CA-03','Bezistân (1)','Çarşı','Birinci bezistân; örtülü kapalı çarşıdır.'],
+['CA-04','Bezistân (2)','Çarşı','İkinci bezistân; örtülü kapalı çarşıdır.'],
+['H-01','Rüstem Paşa Hanı','Han','Mûytâblarda bulunan Rüstem Paşa Hanı; büyük ve kârgir bir handır.'],
+['H-02','Kârgîr Han','Han','Kârgir yapıyla inşa edilmiş handır.'],
+['H-03','İki Kapılı Han','Han','İki kapısıyla bilinen handır (mamur).'],
+['H-04','Yemiş Kapanı','Han','Yemiş ticareti için kullanılan kapan hanıdır.'],
+['H-05','Nahl Hanı','Han','Nahl ticaretine ait handır.'],
+['H-06','Havlucular Hanı','Han','Havlu üreticilerinin hanıdır.'],
+['H-08','Taş Han','Han','Taş yapılı handır.'],
+['H-09','Kiracı Hanı','Han','Kiracı adıyla bilinen handır.'],
+['H-10','Katır Hanı','Han','Katır hayvanlarına tahsis edilmiş handır.'],
+['H-11','Araplar Hanı','Han','Arap tacirler için kullanılan handır.'],
+['H-12','Halîl Paşa Hanı','Han','Halîl Paşa tarafından yaptırılmış handır.'],
+['H-13','Gümrük Hanı','Han','Gümrük işlemleri için kullanılan handır.'],
+['H-14','Tarakçılar Hanı','Han','Tarakçı esnafının hanıdır.'],
+['H-15','Basmacılar Hanı','Han','Basmacı esnafının hanıdır.'],
+['H-16','Kara Panayot Hanı','Han','Kara Panayot adıyla bilinen handır.'],
+['H-17','Lüleciler Hanı (1)','Han','Lüleci esnafının birinci hanıdır.'],
+['H-18','Paşanın Hanı','Han','Paşa\'ya ait handır.'],
+['H-19','Sarrâf Hanı','Han','Sarrâf esnafının hanıdır.'],
+['H-20','Karslı Ahmed Bey Hanı','Han','Karslı Ahmed Bey tarafından yaptırılmış handır.'],
+['H-22','Lüleciler Hanı (2)','Han','Lüleci esnafının ikinci hanıdır.'],
+['H-23','Postahâne Hanı','Han','Posta hizmetleri için kullanılan handır.'],
+['H-24','Akpınarlıoğlu Hanı','Han','Akpınarlıoğlu tarafından yaptırılmış handır.'],
+['H-H1','Mehmed Paşa Hanı (harap)','Han','Harap olmuş, eseri kalmayan Mehmed Paşa Hanı.'],
+['H-H2','Kürkçüler Hanı (harap)','Han','Harap olmuş Kürkçüler Hanı.'],
+['H-H3','İki Kapılı Han (harap)','Han','Harap olmuş ikinci İki Kapılı Han.'],
+['H-H4','Esîr Hanı (harap)','Han','Esir ticaretine tahsis edilmiş, harap olmuş handır.'],
+['H-H5','Eski Kapan (harap)','Han','Harap olmuş eski kapan hanıdır.'],
+['H-H6','Kızılbaş Hasan Ağa Hanı (harap)','Han','Harap olmuş Kızılbaş Hasan Ağa Hanı.'],
+['HM-01','Sarây Hamamı','Hamam','Saray içindeki hamamdır.'],
+['HM-02','Tahtakale Hamamı','Hamam','Tahtakale semtindeki hamamdır.'],
+['HM-03','Topkapı Hamamı','Hamam','Topkapı yakınındaki hamamdır.'],
+['HM-04','Üç Şerefeli Hamamı','Hamam','Üç Şerefeli Câmii külliyesindeki hamamdır.'],
+['HM-05','Şifâ Hamamı','Hamam','Kösec Balaban Mahallesinde Karanfiloğlu Ali Efendi tarafından yapılmış büyük hamamdır. İçinde hastalar için bir halveti bulunduğundan Şifâ adını almıştır.'],
+['HM-06','Tahtalı Hamam','Hamam','Kuşcu Doğan Mahallesinde İshak Paşa tarafından yaptırılmış ferd hamamdır. Kurnaları etrafına ahşap kerçeveler konulduğundan Tahtalı adını almıştır.'],
+['HM-07','Beylerbeyi Hamamı','Hamam','Mîr-i Mîrân Mahallesinde Yusuf Paşa tarafından 832/1428 tarihinde yapılmış çifte hamamdır. Şekli ve havuzu ile eşsizdir.'],
+['HM-08','Küçük Hamam','Hamam','İmâret-i Mezid Bey Mahallesinde Gâzî Mustafa Paşa Hamamı\'dır. Selhhâne, Yeşilce isimleriyle de anılmıştır.'],
+['HM-09','Abdullah Hamamı','Hamam','Eskici Hamza Mahallesinde ferd hamamdır. Sinân vakfındandır.'],
+['HM-10','Yeniçeri Hamamı','Hamam','Murâdiye Mahallesinde yeniçeri kışlalarının yakınlığı nedeniyle bu adı almış ferd hamamdır.'],
+['HM-11','İbrâhim Paşa Hamamı','Hamam','Zen-i İbrâhim Paşa Mahallesinde İbrâhim Paşa zevcesi Hundî Hatun tarafından yaptırılmış ferd hamamdır.'],
+['HM-12','Tahmis Hamamı','Hamam','Tahmiste Mustafa Paşa\'nın yaptırdığı ferd hamamdır. Eski adı Boyacılar Hamamı\'dır.'],
+['HM-13','Mezîd Hamamı','Hamam','Pazarcılar içinde Mezid Bey tarafından yaptırılmış ferd hamamdır.'],
+['HM-14','Oğlanlı Hamamı','Hamam','Eski Cami kurbunda Âhi Çelebi Mehmed tarafından yapılmış hamamdır. Eski adı Âhi Çelebi Hamamı\'dır.'],
+['HM-15','Çukacılar Hamamı','Hamam','Hisârda Yahşi Fakîh tarafından fetih döneminde yapılmış ferd hamamdır.'],
+['HM-16','Gâzî Mihal Bey Hamamı (harap)','Hamam','815/1412 tarihinde Gâzî Mihal Bey tarafından yapılmış çifte hamamdır. El-yevm harap ve muattaldir.'],
+['HM-17','Kasım Paşa Hamamı (harap)','Hamam','Evliya Kâsım Paşa tarafından yapılmış, harap olmuş hamamdır.'],
+['HM-18','Sultân Bâyezîd Hamamı (harap)','Hamam','Sultân Bâyezîd adıyla bilinen harap hamamdır.'],
+['HM-19','Ağa Hamamı (harap)','Hamam','Ağa adıyla bilinen harap hamamdır.'],
+['HM-20','Yıldırım Hamamı (harap)','Hamam','Yıldırım dönemine ait harap hamamdır.'],
+['HM-21','Fil Hamamı (harap)','Hamam','Fil adıyla bilinen harap hamamdır.'],
+['HM-22','Yeni Hamam (harap)','Hamam','Yeni adıyla bilinen harap hamamdır.'],
+['HM-23','Hızır Ağa Hamamı (harap)','Hamam','Hızır Ağa tarafından yapılmış harap hamamdır.'],
+['HM-24','Mahmud Paşa Hamamı (harap)','Hamam','Mahmud Paşa tarafından yapılmış harap hamamdır.'],
+['HM-25','Yıldırım Büyük Hamam (harap)','Hamam','Yıldırım semtindeki büyük harap hamamdır.'],
+['HM-26','Çangallı Hamam (harap)','Hamam','Çangallı adıyla bilinen harap hamamdır.'],
+['HM-27','Sarıca Paşa Hamamı (harap)','Hamam','Sarıca Paşa tarafından yapılmış harap hamamdır.'],
+['HM-28','Ağaç Pazarı Hamamı (harap)','Hamam','Ağaç Pazarı civarındaki harap hamamdır.'],
+['HM-29','Taşlık Hamamı (harap)','Hamam','Taşlık Mahallesindeki harap hamamdır.'],
+['HM-30','Kazasker Hamamı (harap)','Hamam','Kazasker tarafından yapılmış harap hamamdır.'],
+['HM-31','Çukur Hamam (harap)','Hamam','Çukur adıyla bilinen harap hamamdır.'],
+['HM-32','Yerekan Hamamı (harap)','Hamam','Yerekan adıyla bilinen harap hamamdır.'],
+['HM-33','Delikli Kaya Hamamı (harap)','Hamam','Delikli Kaya adıyla bilinen harap hamamdır.'],
+['HM-34','Dere Hamamı (harap)','Hamam','Dere civarındaki harap hamamdır.'],
+['HM-35','Kilimli Hamam (harap)','Hamam','Kilimli adıyla bilinen harap hamamdır.'],
+['SE-01','Batpazarı Sebîli','Sebil','Batpazarı\'nda bulunan sebildir.'],
+['SE-02','Yalnızgöz Sebîli','Sebil','Yalnızgöz adıyla bilinen sebildir.'],
+['SE-03','Pazarcılar İçi Sebîli','Sebil','Pazarcılar çarşısı içindeki sebildir.'],
+['SE-04','Yıldırım Sebîli','Sebil','Yıldırım Mahallesindeki sebildir.'],
+['SE-05','Saraçlar Sebîli','Sebil','Saraçlar çarşısı civarındaki sebildir.'],
+['HV-01','İsmâîl Ağa Havuzu','Havuz','Mücellidler çarşısında Eski Câmi Caddesinin 54. numarasında Edirne Sarayı müdürü İsmâîl Ağa tarafından 1276 tarihinde inşâ edilmiş havuzdur.'],
+['HV-02','Fenârî Hacı Ahmed Efendi Havuzu','Havuz','Üç Şerefeli Câmi-i şerîfi havlusu kapısında 1276 tarihinde Fenârî Hacı Ahmed Efendi tarafından inşâ edilmiş havuzdur.'],
+['HV-03','Serbestzâde Hasan Ağa Havuzu','Havuz','Eski Câmi kurbunda muvakkıthâne sokağının 10. numarasında Serbestzâde Hasan Ağa\'nın 1285 tarihinde yaptırdığı havuzdur.'],
+['HV-04','Belediye Havuzu (Saraçlar)','Havuz','Saraçlarda Ali Paşa\'nın Ortakapısında Saraçlar Caddesinin 75. numarasında belediye tarafından 1285 tarihinde inşâ edilmiş havuzdur.'],
+['HV-05','Hacı Emin Bey Havuzu','Havuz','Batpazarı\'nda Çilingirler Caddesinin 1. numarasında Hacı Emin Bey havuzudur. 1319 tarihinde buradan kaldırılarak Kuyumcular Sokağına nakledilmiştir.'],
+['HV-06','Fenârî Hacı Ahmed Efendi Havuzu (2)','Havuz','Zindanaltında Zindanaltı Caddesinin 9. numarasında Fenârî Hacı Ahmed Efendi tarafından yapılmış havuzdur. 1308 tarihinde kaldırılmıştır.'],
+['HV-07','Duhânî Hacı Râşid Efendi Havuzu','Havuz','Kassâb Abdülazîz Mahallesinde Kanlıpınar\'da İstanbulyolu Caddesinde Duhânî Hacı Râşid Efendi\'ye ait havuzdur.'],
+['HV-08','Nalbur Mehmed Efendi Havuzu','Havuz','Fındık Fakîh Mahallesinde Köprübaşı Caddesinin 84. numarasında Nalbur Mehmed Efendi tarafından inşâ edilmiş havuzdur.'],
+['HV-09','Belediye Havuzu (Tavuk Kapısı)','Havuz','Tavuk Kapısında Tahtakale Mahallesinde Zindanaltı Caddesinde belediye tarafından inşâ edilmiş havuzdur. 1319 tarihinde yerinden kaldırılmıştır.'],
+['HV-10','Hacı Sâlih Bey Havuzu','Havuz','Fındık Fakîh Mahallesinde Koğacılar Caddesinin 10. numarasında Hacı Sâlih Bey havuzudur.'],
+['CE-001','Amcazâde Hüseyin Paşa Çeşmesi (Kıyak)','Çeşme','Üsküfçü Hızır Mahallesinde Kıyak Caddesinin 218. numarasında Amcazâde Hüseyin Paşa\'nın 1113 tarihinde yaptırdığı çeşmedir.'],
+['CE-002','Amcazâde Hüseyin Paşa Çeşmesi (Arabacılar)','Çeşme','Çokalca Mahallesinde Kıyak Caddesinin 81. numarasında Amcazâde Hüseyin Paşa\'nın 1113 tarihinde inşâ eylediği çeşmedir.'],
+['CE-003','Şıbkalı Yahya Bey Çeşmesi','Çeşme','Yahya Bey Mahallesinde Atîk Tophâne Caddesinin 42. numarasında şâir Yahya Bey\'in 988 tarihinde yaptırdığı çeşmedir.'],
+['CE-004','Fatma Hatun Çeşmesi','Çeşme','Kuburcu Ali Bey Mahallesinde Asmalı Sokağının 12. numarasında Fatma Hatun\'un 1113 tarihinde inşâ eylediği çeşmedir.'],
+['CE-005','Binbaşı Ahmed Ağa Çeşmesi','Çeşme','Yakûb Kilârî Mahallesinde Keresteciler Bayırı Sokağının 9. numarasında Binbaşı Ahmed Ağa\'nın 1240 tarihinde yaptırdığı çeşmedir.'],
+['CE-006','İbrâhîm Çeşmesi (Musallâ)','Çeşme','Medrese-i Ali Bey Mahallesinde Musallâ Sokağının 5. numarasında İbrâhîm adlı hayırseverin 1095 tarihinde yaptırdığı çeşmedir.'],
+['CE-007','Çeşme (951 tarihli)','Çeşme','Kösec Balaban Mahallesinde İzzet Bey Sokağının 15. numarasında 951 tarihli çeşmedir.'],
+['CE-008','Şeyhzâde Abdi Efendi Çeşmesi','Çeşme','Karaca Bevvâb Mahallesinde Tavukçularhanı Sokağının 2. numarasında Şeyhzâde Abdi Efendi\'nin 1114 tarihinde yaptırdığı çeşmedir.'],
+['CE-009','Emine Hatun Çeşmesi','Çeşme','Dâye Hatun Mahallesinde Tekkekapı Caddesinin 40. numarasında Emine Hatun\'un 1095 tarihinde yaptırdığı çeşmedir.'],
+['CE-010','Bekir Rüstem Paşa Çeşmesi','Çeşme','Dâye Hatun Mahallesinde Tekkekapı Caddesinin 21. numarasında Edirne valisi Bekir Rüstem Paşa\'nın 1271 tarihinde yaptırdığı çeşmedir.'],
+['CE-011','Ahmed Efendi Çeşmesi (Altûnî)','Çeşme','Altûnî Mahallesinde Çamaşırcı Sokağının 39. numarasında Ömer Efendizâde Ahmed Efendi tarafından müceddeden inşâ edilen 1141 tarihli çeşmedir.'],
+['CE-012','Amcazâde Hüseyin Paşa Çeşmesi (Hâce İvaz)','Çeşme','Hâce İvaz Mahallesinde Horozlu Caddesinin 71. numarasında Amcazâde Hüseyin Paşa\'nın 1110 tarihinde inşâ eylediği çeşmedir.'],
+['CE-013','Hasan Çeşmesi (Gâzî Hâce)','Çeşme','Gâzî Hâce Mahallesinde Tütünsüz Tekkesi Sokağının 17. numarasında Hasan adlı kişinin 1173 tarihinde yaptırdığı çeşmedir.'],
+['CE-014','Nezîr Ağa Çeşmesi','Çeşme','Ali Kuş Mahallesinde Ali Kuş Câmii Sokağının 58. numarasında Dârü\'s-saâde ağası Nezîr Ağa\'nın 1113 tarihinde yaptırdığı çeşmedir.'],
+['CE-015','Hacı Hüseyin Çeşmesi','Çeşme','Balaban Paşa Mahallesinde Köprübaşı Caddesinin 17. numarasında Hacı Hüseyin\'in 1098 tarihinde yaptırdığı büyük çeşmedir.'],
+['CE-016','Damad Ali Paşa Çeşmesi','Çeşme','Zen-i Sarıca Paşa Mahallesinde Damâd Çeşmesi Sokağının 15. numarasında Damad Ali Paşa\'nın 1106 tarihinde yaptırdığı çeşmedir. Damad Çeşmesi adıyla meşhurdur.'],
+['CE-017','Kız Çeşmesi','Çeşme','Külâhdûz Mahallesinde Uzunkaldırım Caddesinin 59. numarasında Âkile Molla\'nın annesinin 1178 tarihinde kızı için yaptırdığı çeşmedir.'],
+['CE-018','Osmân Ağa Çeşmesi','Çeşme','Eskici Hamza Mahallesinde Abdullah Hamamı Sokağının 3. numarasında Osmân Ağa\'nın 991 tarihinde yaptırdığı çeşmedir.'],
+['CE-019','Elmas Mehmed Paşa Hemşiresi Çeşmesi','Çeşme','Fındık Fakîh Mahallesinde Gülşenî Dergâhı Sokağının 13. numarasında Elmas Mehmed Paşa hemşiresinin 1108 tarihinde yaptırdığı çeşmedir.'],
+['CE-020','İbrâhîm Çeşmesi (Yıldırım)','Çeşme','Yıldırım Bâyezîd Mahallesinde Mustafa Paşa Caddesinin 28. numarasında 1080 tarihli çeşmedir.'],
+['CE-021','Tekneci Hacı İbrâhîm Ağa Çeşmesi','Çeşme','Aya İsterati Mahallesinde Küçük Çeşme Sokağının 1. numarasında Tekneci Hacı İbrâhîm Ağa\'nın 984 tarihinde yaptırdığı çeşmedir.'],
+['CE-022','Hacı Osmân Ağa Çeşmesi','Çeşme','Çarşıda Paşakapısı Caddesinin 36. numarasında Hacı Osmân Ağa\'nın 1269 tarihinde yaptırdığı çeşmedir.'],
+['CE-023','Merzifonî Kara Mustafa Paşa Çeşmesi (Arasta)','Çeşme','Arastabaşında Sultân Selîm Caddesinin 113. numarasında Merzifonî Kara Mustafa Paşa\'nın 1077 tarihinde yaptırdığı büyük çeşmedir.'],
+['CE-024','Merzifonî Kara Mustafa Paşa Çeşmesi (Tahmîs)','Çeşme','Tahmîste Kuyumcular Caddesinin 1. numarasında Kara Mustafa Paşa\'nın diğer çeşmesidir. 1077 tarihlidir.'],
+['CE-025','Evliya Kasım Paşa Mahallesi Çeşmesi','Çeşme','Evliya Kasım Paşa Mahallesinde Kirişhâne Caddesinin 115. numarasında bulunan büyük çeşmedir.'],
+['CE-026','Alemdâr Mahallesi Çeşmesi','Çeşme','Alemdâr Mahallesinde Alemdâr Mektebi Caddesinin 13. numarasındaki çeşmedir.'],
+['CE-027','Kara Mustafa Paşa Çeşmesi (Zindanaltı)','Çeşme','Zindanaltında Germekapı Caddesinde Zindan Sokağı kurbundaki Kara Mustafa Paşa\'nın büyük çeşmesidir.'],
+['CE-028','Kara Mustafa Paşa Çeşmesi (Germekapı)','Çeşme','Manyas Kapısında Dârü\'l-hadîs Camii önünde Germekapı Caddesinin 72. numarasındaki büyük çeşmedir.'],
+['CE-029','Kara Mustafa Paşa Çeşmesi (Mezîd Bey)','Çeşme','İmâret-i Mezîd Bey Mahallesinde Uzunkaldırım Caddesinin 42. numarasındaki çeşmedir.'],
+['CE-030','Kara Mustafa Paşa Çeşmesi (Dârü\'s-siyâde 1)','Çeşme','Dârü\'s-siyâde Mahallesinde Uzunkaldırım Caddesinin 114. numarasındaki çeşmedir.'],
+['CE-031','Kara Mustafa Paşa Çeşmesi (Dârü\'s-siyâde 2)','Çeşme','Dârü\'s-siyâde Mahallesinde Câmii Sokağının 8. numarasındaki çeşmedir.'],
+['CE-032','Kara Mustafa Paşa Çeşmesi (Kebe Yapıcı)','Çeşme','Kebe Yapıcı Mahallesinde Kanatlıköprü Sokağının 32. numarasındaki çeşmedir.'],
+['CE-033','Kara Mustafa Paşa Çeşmesi (Sâbûnî)','Çeşme','Sabunî Mahallesinde Sâbûnî Câmii Sokağının 8. numarasındaki çeşmedir.'],
+['CE-034','Kara Mustafa Paşa Çeşmesi (Saraçhâne)','Çeşme','Mîrimîrân Mahallesinde Beylerbeyi Caddesinin 18. numarasında Saraçhâne başındaki çeşmedir.'],
+['CE-035','Kara Mustafa Paşa Çeşmesi (Zincirlikuyu)','Çeşme','Zincirlikuyu Mahallesinde Ağaçpazarı Caddesinin 161. numarasında Kaplan Baba Tekkesi karşısındaki çeşmedir.'],
+['CE-036','Kara Mustafa Paşa Çeşmesi (Karaağaç)','Çeşme','Kunduk Osmân Mahallesinde Ayvalıgöl Caddesinin 41. numarasında Karaağaç Çeşmesi adıyla meşhur çeşmedir.'],
+['CE-037','Musâhib Mustafa Paşa Çeşmesi','Çeşme','Hadım Balaban Mahallesinde Hatîce Sultân Sarayı Sokağında Askerî Mekteb-i İdâdîsi bitişiğinde Musâhib Mustafa Paşa\'nın çeşmesidir.'],
+['CE-038','Nâzır Çeşmesi (İstanbulyolu)','Çeşme','Kavakkapı mevkiinde İstanbulyolu Caddesinin 3. numarasında Nâzır Mehmed Bey tarafından 993 tarihinde yaptırılmış çeşmedir. 1279 tarihinde tamir edilmiştir.'],
+['CE-039','Hacı Ahmed Çeşmesi (Debbâğ)','Çeşme','Debbâğ Hacı Halîl Mahallesinde Hacı Burnâz Câmii Sokağının 12. numarasında Hacı Ahmed\'in 1091 tarihinde yaptırdığı çeşmedir.'],
+['CE-040','Zehrâ Hanım Çeşmesi','Çeşme','Yancıkçı Şahin Mahallesinde İstanbulyolu Caddesinin 4. numarasında Seyyid Celâleddîn Türbesi yakınında Zehrâ Hanım\'ın çeşmesidir.'],
+['CE-041','Hacı Yusuf Çeşmesi','Çeşme','Arif Ağa Mahallesinde Salı Tekkesi Sokağının 26. numarasında Hacı Yusuf\'un 1126 tarihinde yaptırdığı çeşmedir.'],
+['CE-042','Havvâ Hatun Çeşmesi (Çukurçeşme)','Çeşme','Medrese-i Ali Bey Mahallesinde Taşlık Câmii Caddesinde Sivasî Dergâhı kurbunda Havvâ Hatun\'un 1102 tarihinde yaptırdığı çeşmedir. Çukurçeşme adıyla meşhurdur.'],
+['CE-043','Amcazâde Hüseyin Paşa Çeşmesi (Sıkça Murâd)','Çeşme','Sıkça Murâd Mahallesinde Paşakapısı Caddesinin 73. numarasında 1111 tarihli çeşmedir.'],
+['CE-044','Hüseyin Çeşmesi (Saraçlar)','Çeşme','Çarşıda Saraçlarbaşında Saraçlar Câmii Sokağının 3. numarasında Hüseyin\'in çeşmesidir.'],
+['CE-045','Hasan Paşa Çeşmesi (Sultân Selîm)','Çeşme','Sultân Selîm Câmi-i şerîfi hazîresinde mihrâb önünde Hasan Paşa tarafından mahdûmu için yaptırılan çeşmedir.'],
+['CE-046','Ayşe Hanım Çeşmesi','Çeşme','Hızır Ağa Mahallesinde Atîk Tophâne Caddesinde Ayşe Hanım\'ın 1242 tarihinde yaptırdığı çeşmedir.'],
+['CE-047','Arif Ağa Çeşmesi (Keresteciler)','Çeşme','Hızır Ağa Mahallesinde Kerestecilerbayırında Arif Ağa\'nın 1240 tarihinde yaptırdığı çeşmedir.'],
+['CE-048','Hacı Mehmed Çeşmesi (Şâh Melek)','Çeşme','Şah Melek Paşa Mahallesinde Debbâğhâne Caddesinde Hacı Mehmed\'in 1062 tarihinde yaptırdığı çeşmedir.'],
+['CE-049','Mehmed Emin Ağa Çeşmesi (Mûytâblar)','Çeşme','Çarşıda Mûytâblarbaşında gümrük nâzırı Mehmed Emin Ağa\'nın 1220 tarihinde yaptırdığı çeşmedir.'],
+['CE-050','Çeşme (Sarıcapaşa)','Çeşme','Sarıcapaşa Mahallesinde Şerif Bey Sokağının 12. numarasında 1113 tarihli çeşmedir.'],
+['CE-051','Hacı Mustafa Ağa Çeşmesi','Çeşme','Sarıcapaşa Mahallesinde Çukurçeşme Sokağının 14. numarasında Hacı Mustafa Ağa\'nın 1113 tarihinde yaptırdığı çeşmedir.'],
+['CE-052','Afîfe Hatun Çeşmesi','Çeşme','Şeyhî Çelebi Mahallesinde Çeşme Sokağının 2. numarasında Afîfe Hatun\'un 1181 tarihinde yaptırdığı çeşmedir.'],
+['CE-053','Seyyid Feyzullâh Efendi Çeşmesi','Çeşme','Karabulut Mahallesinde Karabulut Caddesinin 53. numarasında şeyhülislâm Seyyid Feyzullâh Efendi\'nin 1112 tarihinde yaptırdığı çeşmedir.'],
+['CE-054','Sinân Ağa Çeşmesi (Sultân Bâyezîd)','Çeşme','Sultân Bâyezîd Mahallesinde Sultân Bâyezîd Caddesinin 55. numarasında Sinân Ağa\'nın Sultân Bâyezîd Câmii haremindeki çeşmesidir.'],
+['CE-055','Sultân Murâd Hân-ı Sâlîs Çeşmesi','Çeşme','Üsküfçü Hızır Mahallesinde Atîk Tophâne Caddesinin 32. numarasında Sultân Murâd-ı Sâlisin çeşmesidir.'],
+['CE-056','Necîbe Hatun Çeşmesi','Çeşme','Yakub Kilârî Mahallesinde Sarıcapaşa Caddesinin 4. numarasında Necîbe Hatun Çeşmesidir.'],
+['CE-057','Soğukçeşme (Sultân Selîm)','Çeşme','Sarıcapaşa Mahallesinde Soğukçeşme Caddesinin 8. numarasında Sultân Selîm Hân-ı Sânî\'ye ait Soğukçeşme adıyla meşhur çeşmedir.'],
+['CE-058','Cafer Çelebi Çeşmesi','Çeşme','Sarıcapaşa Mahallesinde Sarıcapaşa Câmii Sokağının 6. numarasında şehremîni Cafer Çelebi\'nin çeşmesidir.'],
+['CE-059','Tavanlı Çeşme (Medrese-i Ali Bey)','Çeşme','Medrese-i Ali Bey Mahallesinde Tavanlıçeşme Sokağının 8. numarasında üzeri örtülü Tavanlı Çeşmedir.'],
+['CE-060','Hacı Halîl Çeşmesi (Şeyhî Çelebi)','Çeşme','Şeyhî Çelebi Mahallesinde Karadutlu Sokağının 27. numarasında Hacı Halîl Çeşmesi.'],
+['CE-061','Şeyhî Çelebi Çeşmesi','Çeşme','Şeyhî Çelebi Mahallesinde Şeyhi Çelebi Sokağının 5. numarasında Şeyhî Çelebi\'nin çeşmesidir.'],
+['CE-062','Çolağın Hasan Ağa Çeşmesi','Çeşme','Yancıkçı Şâhîn Mahallesinde Kolluk Sokağının 1. numarasındaki çeşmedir.'],
+['CE-063','Hacı Musalli Çeşmesi','Çeşme','Yancıkçı Şahin Mahallesinde İstanbulyolu Caddesinin 34. numarasındaki çeşmedir.'],
+['CE-064','Lutfîzâde Çeşmesi','Çeşme','Mehmed Ağa Mahallesinde Mahkemebayırı Sokağının 22. numarasında Lutfîzâde Mehmed Ağa ve İbrâhîm Ağa Çeşmesi.'],
+['CE-065','Miskîn Sefer Şâh Çeşmesi','Çeşme','Hacı Safâ Mahallesinde Tahmîs Sokağının 18. numarasında Miskîn Sefer Şâh Çeşmesi.'],
+['CE-066','Kazasker Davud Efendi Çeşmesi','Çeşme','Kıncı Fîrûz Mahallesinde Vavlı Câmi Sokağının 6. numarasındaki çeşmedir.'],
+['CE-067','Cemile Hatun Çeşmesi','Çeşme','Medrese-i Ali Bey Mahallesinde Ali Bey Câmi-i şerîfi Sokağının 8. numarasındaki çeşmedir.'],
+['CE-068','Gürcü Ali Baba Çeşmesi','Çeşme','Gülbahar Hatun Mahallesinde Gülbahar Câmii Sokağının 10. numarasındaki çeşmedir.'],
+['CE-069','Çeşme (Murâdiye 34)','Çeşme','Sûfî Bâyezîd Mahallesinde Murâdiye Küçükpazarı Caddesinin 34. numarasında bânîsi bilinmeyen çeşmedir.'],
+['CE-070','Sakabaşı Çeşmesi','Çeşme','Mezid Bey Mahallesinde Kırlangıç Sokağının 41. numarasında Sakabaşı Çeşmesidir.'],
+['CE-071','İsmâîl Rahmi Efendi Çeşmesi','Çeşme','Mîrimîrân Mahallesinde Beylerbeyi Caddesinin 2. numarasında Edirne Kadısı İsmâîl Rahmi Efendi\'nin 1243 tarihinde tamir ettirdiği çeşmedir.'],
+['CE-072','Zağanos Subaşı Çeşmesi','Çeşme','Kızılminare Mahallesinde Kızılminare Mescidi Sokağının 5. numarasında Zağanos Subaşı Çeşmesidir.'],
+['CE-073','Hacı Halîl Çeşmesi (Feyzullah)','Çeşme','Feyzullah Paşa Mahallesinde Çıbıkçılarhanı Sokağının 3. numarasında Hacı Halîl Çeşmesidir.'],
+['CE-074','Çeşme (Baba Timurtaş)','Çeşme','Baba Timurtaş Mahallesinde Karanfiloğlu Çarşısı Caddesinin 4. numarasında bânîsi muhtemel olarak Sultân Murâd-ı Sânî veya Sultân Süleymân olan çeşmedir.'],
+['CE-075','Çeşme (Gâzî Hâce 130)','Çeşme','Gâzî Hâce Mahallesinde Ağaçpazarı Caddesinin 130. numarasında bânîsi bilinmeyen çeşmedir.'],
+['CE-076','Câbî Hacı Sâdık Efendi Çeşmesi','Çeşme','Süle Çelebi Mahallesinde İkilüleli Sokağının 18. numarasında Câbî Hacı Sâdık Efendi Çeşmesi.'],
+['CE-077','Mehmed Efendi Çeşmesi (Gülâbîci)','Çeşme','Kazzâz Sâlih Mahallesinde Gülâbîciler Caddesinin 7. numarasında gülâbîci esnafından Mehmed Efendi Çeşmesi.'],
+['CE-078','Solak Hacı Ali Ağa Çeşmesi','Çeşme','Vize Çelebi Mahallesinde Uzunkaldırım Caddesinin 60. numarasında Solak Hacı Ali Ağa Çeşmesi.'],
+['CE-079','Hayâlî Bey İki Lüleli Çeşmesi','Çeşme','Vize Çelebi Mahallesinde Uzunkaldırım Caddesinin 82. numarasında şair Hayâlî Bey\'in çeşmesidir. İki lüleli olduğundan İki Lüleli Çeşmesi adını almıştır.'],
+['CE-080','Ağa Hüseyin Paşa Çeşmesi','Çeşme','Kunduk Osmân Mahallesinde Saksağan Sokağının 9. numarasında Edirne valisi Ağa Hüseyin Paşa\'nın çeşmesidir.'],
+['CE-081','Abdurrahmân bin Seyyid Ali Çeşmesi','Çeşme','Abdurrahmân Mahallesinde Abdurrahmân Câmii Sokağının 10. numarasında Edirne kadısından Abdurrahmân\'ın çeşmesidir.'],
+['CE-082','Tavanlı Çeşme (Abdurrahmân)','Çeşme','Abdurrahmân Mahallesinde Tavanlıçeşme Sokağının 1. numarasında üzeri örtülü Tavanlı Çeşmedir.'],
+['CE-083','Şâhîn oğlu Çeşmesi','Çeşme','Şerbetdâr Hamza Bey Mahallesinde Neboysa Sokağının 3. numarasında Şâhîn oğlu\'nun mahvedilmiş çeşmesidir.'],
+['CE-084','Çeşme (Şerbetdâr Hamza Bey 13)','Çeşme','Şerbetdâr Hamza Bey Mahallesinde Külhan Sokağının 13. numarasında bânîsi bilinmeyen çeşmedir.'],
+['CE-085','Nuri Efendi Çeşmesi','Çeşme','Hacı Mercümek Mahallesinde Hacı Mercümek Câmii Sokağının 8. numarasında Nuri Efendi Çeşmesi.'],
+['CE-086','Çeşme (Kürt Hâce 6)','Çeşme','Kürt Hâce Mahallesinde Kürt Hâce Câmii Sokağının 6. numarasında bânîsi bilinmeyen çeşmedir.'],
+['CE-087','Kadı Sâlim Efendi Çeşmesi','Çeşme','Hasanpaşa Mahallesinde Hasfırın Caddesinin 17. numarasında Kadı Sâlim Efendi\'nin mahvedilmiş çeşmesidir.'],
+['CE-088','Sultân Ahmed Hân Çeşmesi (1)','Çeşme','Fındık Fakih Mahallesinde Buzhane Caddesinin 7. numarasında Sultân Ahmed Han Çeşmesidir.'],
+['CE-089','Sultân Ahmed Hân Çeşmesi (2)','Çeşme','Fındık Fakih Mahallesinde Buzhâne Caddesinin 45 numaralı hânedeki Sultân Ahmed Han Çeşmesidir.'],
+['CE-090','Sultân Süleymân Çeşmesi (Şeyh Şücâuddîn)','Çeşme','Şeyh Şücâuddîn Mahallesinde Debbâğhâne Caddesinin 35. numarasında Sultân Süleymân Han\'ın yaptırdığı çeşmedir.'],
+['CE-091','Çeşme (Karaca Ahmed 33)','Çeşme','Karaca Ahmed Mahallesinde Karaca Ahmed Câmii Sokağının 33. numarasında bânîsi bilinmeyen çeşmedir.'],
+['CE-092','Kızçeşmesi (Noktacızâde)','Çeşme','Noktacızâde Mahallesinde Noktacızâde Sokağının 5. numarasında Kızçeşmesi adıyla meşhur çeşmedir.'],
+['CE-093','Karayazıcı Ahmed Efendi Çeşmesi','Çeşme','Çokalca Mahallesinde Çokalcı Câmii Sokağının 2. numarasında Karayazıcı Ahmed Efendi\'nin Çukurçeşmesidir.'],
+['CE-094','Hüseyin Çeşmesi (Mumhâne)','Çeşme','Mumhâne Mahallesinde Noktacızâde Sokağının 12. numarasında Hüseyin\'in çeşmesidir.'],
+['CE-095','Fatma Sultân Çeşmesi','Çeşme','Meydân Mahallesinde Arnabudbayırı Sokağının 45. numarasında Fatma Sultân Çeşmesidir.'],
+['CE-096','Celâlîzâde Ali Ağa Çeşmesi (Tavanlı)','Çeşme','Berkuk Ağa Mahallesinde Ali Ağa Caddesinin 17. numarasında Celâlîzâde Ali Ağa\'nın Tavanlı Çeşmesidir.'],
+['CE-097','Fanfan Hasan Efendi Çeşmesi','Çeşme','Murâdiye Mahallesinde Ağa Hamamı Sokağının 14. numarasında Fanfan Hasan Efendi Çeşmesidir.'],
+['CE-098','Sultân Süleymân Çeşmesi (Murâdiye)','Çeşme','Murâdiye Mahallesinde Şekerciyokuşu Sokağının 2. numarasında Sultân Süleymân Han Çeşmesidir.'],
+['CE-099','Züleyhâ Hanım Çeşmesi','Çeşme','Zen-i İbrâhîm Paşa Mahallesinde Hacı Mahmûd Ağa Bayırı Sokağının 2. numarasında Züleyhâ Hanım Çeşmesidir.'],
+['CE-100','Sultân Süleymân Çeşmesi (Zen-i İbrâhîm Paşa)','Çeşme','Zen-i İbrâhîm Paşa Mahallesinde Hacı Mahmûd Ağa Bayırı Sokağının 8. numarasında Sultân Süleymân Han Çeşmesidir.'],
+['CE-101','Acı Çeşme','Çeşme','Zen-i İbrâhîm Paşa Mahallesinde Zincirlikuyu Sokağının 17. numarasında Acı Çeşme adıyla bilinen çeşmedir.'],
+['CE-102','Seyyid Hüseyin Çeşmesi','Çeşme','Nâib Çelebi Mahallesinde Çeşme Sokağının 12. numarasında es-Seyyid Hüseyin Çeşmesidir.'],
+['CE-103','Hacı Mehmed Ağa Çeşmesi (Sittî Hatun)','Çeşme','Sittî Hatun Mahallesinde Debbâğhâne Caddesinin 75. numarasında Hacı Mehmed Ağa Çeşmesidir.'],
+['CE-104','Dağdeviren Süleymân Ağa Çeşmesi','Çeşme','Şah Melek Paşa Mahallesinde Mihal Köprüsü Caddesinin 22. numarasında Dağdeviren Süleymân Ağa Çeşmesidir.'],
+['CE-105','Yedekçi Hacı Mehmed Çeşmesi','Çeşme','Emir Şâh Mahallesinde Alaca Câmi Sokağının 25. numarasında Yedekçi Hacı Mehmed Çeşmesidir.'],
+['CE-106','Ahmed Paşa Çeşmesi (Sultân Bâyezîd)','Çeşme','Sultân Bâyezîd Mahallesinde Aliş Paşa Sokağının 34. numarasında Ahmed Paşa Çeşmesidir.'],
+['CE-107','Sinân Ağa Çeşmesi (Sultân Bâyezîd 58)','Çeşme','Sultân Bâyezîd Mahallesinde Aliş Paşa Sokağının 58. numarasında Sinân Ağa Çeşmesidir.'],
+['CE-108','Süleymân Paşa Çeşmesi','Çeşme','Emîr Mescidi Mahallesinde Yıldırım Caddesinin 10. numarasında Süleymân Paşa Çeşmesidir.'],
+['CE-109','Sinân Ağa Çeşmesi (Top Caddesi)','Çeşme','Yeni İmâret Mahallesinde Top Caddesinin 4. numarasında Sinân Ağa Çeşmesidir.'],
+['CE-110','İsmâîl Ağa Çeşmesi (Mumcular)','Çeşme','Mumcular Mahallesinde Mumcular Caddesinin 53. numarasında İsmâîl Ağa Çeşmesidir.'],
+['CE-111','Ümmühân Hâtun Çeşmesi','Çeşme','Süpürgecilerde Süpürgeciler Caddesinin 26. numarasında Ümmühân Hâtun Çeşmesidir.'],
+['CE-112','Yakut Paşa bin Abdullâh Çeşmesi','Çeşme','Hacı Ömer Mahallesinde Haçi Pavli Sokağının 20. numarasında Yakut Paşa bin Abdullâh Çeşmesidir.'],
+['CE-113','Meşalecibaşı Çeşmesi','Çeşme','Derûn-ı hisarda Kilise Câmii Sokağının 42. numarasında Meşalecibaşı Çeşmesidir.'],
+['CE-114','Kuzuoğlu Çeşmesi','Çeşme','Aya Nikola Mahallesinde Dule Sokağının 2. numarasında Kuzuoğlu Çeşmesidir.'],
+['CE-115','Fîrûz Ağa Çeşmesi','Çeşme','Fîrûz Ağa Mahallesinde Fîrûz Ağa Çeşmesi Sokağının 21. numarasında Fîrûz Ağa Çeşmesidir.'],
+['CE-116','Nâzır Çeşmesi (Kulekapısı)','Çeşme','Metropolit Mahallesinde Kulekapısı Caddesinin 35. numarasında Koca Nâzır Mehmed Bey\'in Nâzır Çeşmesidir.'],
+['CE-117','Kuruçeşme','Çeşme','Metropolit Mahallesinde Kulekapısı Caddesinin 61. numarasında Hacı Arif Ağa\'nın Kuruçeşmesidir.'],
+['CE-118','Sarrâf Hayim Çeşmesi','Çeşme','Tahtakale\'de Hahambaşı Sokağının 5. numarasında Sarrâf Hayim Çeşmesidir.'],
+['CE-119','Boşnak Mehmed Paşa Çeşmesi','Çeşme','Tahtakale\'de Havra Sokağının 7. numarasında Boşnak Mehmed Paşa\'nın 1268 tarihinde yaptırdığı çeşmedir.'],
+['CE-120','Sultân Süleymân Çeşmesi (Unkapanı)','Çeşme','Unkapanında Kapan-ı Dakîk Sokağının 30. numarasında Sultân Süleymân Han Çeşmesidir.'],
+['CE-121','Ebü\'l-Vefâ Ahmed Müsellem Efendi Çeşmesi','Çeşme','Lâleli Câmi kurbunda Lâleli Medresesi Sokağının 1. numarasında Ebü\'l-Vefâ Ahmed Müsellem Efendi\'nin 1157 tarihinde yaptırdığı çeşmedir.'],
+['CE-122','Hacı Mehmed Ağa Çeşmesi (Bezistân)','Çeşme','Bezistân kurbunda Kolancılar Sokağının 27. numarasında Hacı Mehmed Ağa Çeşmesidir.'],
+['CE-123','Karslı Ali Paşa Çeşmesi','Çeşme','Filyokuşunda İkikapılıhan Caddesinin 98. numarasında 1232 tarihinde Karslı Ali Paşa\'nın çeşmesidir.'],
+['CE-124','Tarakçı Abdullâh Efendi Çeşmesi','Çeşme','Yediyolağzında Yediyolağzı Caddesinin 88. numarasında Tarakçı Abdullâh Efendi\'nin Horhor Çeşmesidir.'],
+['BZ-01','Büyük Buzhâne (Hasan Paşa 71)','Buzhane','Koğacılarla Batpazarı arasında Hasan Paşa Mahallesinde Buzhâne Caddesinin 71. numarasında Büyük Buzhâne adıyla bilinen; cesâmette birinci buzhânedir.'],
+['BZ-02','Buzhâne (Hasan Paşa 73)','Buzhane','Koğacılarla Batpazarı arasında Hasan Paşa Mahallesinde Buzhâne Caddesinin 73. numarasında bulunan ikinci buzhânedir.'],
+['BZ-03','Buzhâne (Tahtakale 9)','Buzhane','Tavuk Kapısı kurbunda Tahtakale Mahallesinde Fatma Sultân Câmii Sokağının 9. numarasındaki buzhânedir.'],
+['BZ-04','Buzhâne (Tahtakale Semerci 9)','Buzhane','Tavukkapı kurbunda Tahtakale Mahallesinde Semerci Sokağının 9. numarasındaki buzhânedir.'],
+['BZ-05','Buzhâne (Ayşe Kadın)','Buzhane','Yancıkçı Şâhîn Mahallesinde İstanbulyolu Caddesinin 60. numarasında Ayşe Kadın mevkiindeki buzhânedir.'],
+['BZ-06','Buzhâne (Lâleli)','Buzhane','Lâleli Câmii civârında Postahâne Sokağının 13. numarasında cesâmette ikinci buzhânedir. 1285 tarihinde Ermeni Çingene Bogos tarafından genişletilmiştir.'],
+['BZ-07','Buzhâne (Topkapı)','Buzhane','Topkapı dâhilinde hamam önünde Metropolit Caddesinin 44. numarasında bulunan buzhânedir.'],
+['BZ-08','Buzhâne (Mumcular 68)','Buzhane','Mumcular Mahallesinde Mumcular Caddesinin 68. numarasında 1283 tarihinde yıkılan kale burcunun temelinde zuhûr eden büyük kuyuda kurulan buzhânedir.'],
+['KL-01','Züzipka Apostol Rum Kilisesi','Kilise','Ali Kuş Mahallesinde Ali Kuş Câmii Sokağının 5. numarasındaki Rum kilisesidir.'],
+['KL-02','Aya Yorgi Kilisesi','Kilise','Aya Yorgi Mahallesinde Kafeskapı hâricinde, Aya Yorgi Kilisesi Sokağının 14. numarasındaki kilisedir.'],
+['KL-03','Aya Tiryada Kilisesi','Kilise','Mumhâne Mahallesinde Kilise Sokağının 1. numarasında Kıyak semtindeki kilisedir.'],
+['KL-04','Zolohopi Kilisesi','Kilise','Haçi Sarraf Mahallesinde İspatalya Sokağının 2. numarasında Yıldırım\'daki kilisedir.'],
+['KL-05','Aya Dimitri Kilisesi','Kilise','Aya Dimitri Mahallesinde Aya Dimitri Çıkmazının 10. numarasındaki kilisedir.'],
+['KL-06','Aya Yani Kilisesi','Kilise','Aya Yani Mahallesinde Aya Yani Kilisesi Sokağının 9. numarasındaki kilisedir.'],
+['KL-07','Aya İsterati Kilisesi','Kilise','Aya İsterati Mahallesinde Aya İsterati Sokağının 16. numarasındaki kilisedir.'],
+['KL-08','Aya Praşkova Kilisesi','Kilise','Aya İsterati Mahallesinde Kuzuoğlu Sokağının 30. numarasındaki kilisedir.'],
+['KL-09','Aya Nikola Kilisesi','Kilise','Aya Nikola Mahallesinde Aya Nikola Kilisesi Sokağının 9. numarasındaki kilisedir.'],
+['KL-10','Aya Apostol Kilisesi Arsası','Kilise','Panaiye Mahallesinde Tavukkapı Sokağının 21. numarasındaki kilise arsasıdır.'],
+['KL-11','Panaiye Kilisesi','Kilise','Panaiye Mahallesinde Hekîm Faso Sokağının 15. numarasındaki kilisedir.'],
+['KL-12','Hristos Kilisesi','Kilise','Hristos Mahallesinde Hristos Kilisesi Sokağının 2. numarasındaki kilisedir.'],
+['KL-13','Aya İstefanos Kilisesi','Kilise','Aya İstefanos Mahallesinde Aya İstefanos Kilisesi Sokağının 6. numarasındaki kilisedir.'],
+['KL-14','Metropolit Kilisesi','Kilise','Metropolit Mahallesinde Metropolit Kilisesi Caddesindeki kilisedir.'],
+['KL-15','Profiti İlya Kilisesi','Kilise','Kum Mahallesinde Câmi Sokağındaki kilisedir.'],
+['KL-16','Tûr-ı Sînâ Manastırı','Kilise','Metropolit Mahallesinde Tûr-ı Sînâ Kilisesi Sokağının 4. numarasındaki manastırdır.'],
+['KL-17','Surp Toros Ermeni Kilisesi','Kilise','Aya Nikola Mahallesinde Ermeni Kilisesi Sokağının 6. numarasındaki Ermeni kilisesidir.'],
+['KL-18','Surp Karabit Ermeni Kilisesi','Kilise','Süpürgeciler Mahallesinde Yalnızgöz Köprüsü Caddesinin 31. numarasında 1270 tarihinde inşâ edilen Ermeni kilisesidir.'],
+['KL-19','İsveti Kostantino Bulgar Kilisesi','Kilise','Yeşilce Mahallesinde Hasan Fırını Sokağındaki Bulgar kilisesidir.'],
+['KL-20','İsveti Yorgi Bulgar Kilisesi','Kilise','Orta Çukur Mahallesindeki Bulgar kilisesidir.'],
+['KL-21','Bulgar Katolik Kilisesi','Kilise','Ali Kuş Mahallesinde Tekfurdağı Caddesinin 76. numarasındaki Bulgar Katolik kilisesidir.'],
+['KL-22','Fransız Katolik Kilisesi','Kilise','Hisârda Mahkeme Sokağının 10. numarasındaki Fransız Katolik kilisesidir.'],
+['HV_S-01','Polya Cemaati Havrası','Havra','Tahtakale\'de Hahambaşı Sokağının 23. numarasındaki Polya cemaati havrası.'],
+['HV_S-02','Tolya Cemaati Havrası','Havra','Tahtakale\'de Havra Sokağının 10. numarasındaki Tolya cemaati havrası.'],
+['HV_S-03','Sisilya Cemaati Havrası','Havra','Tahtakale\'de Havra Sokağının 2. numarasındaki Sisilya cemaati havrası.'],
+['HV_S-04','Katalonya Cemaati Havrası','Havra','Tahtakale\'de Hahambaşı Sokağının 10. numarasındaki Katalonya cemaati havrası.'],
+['HV_S-05','Hahambaşı Havrası','Havra','Tahtakale\'de Uzun Haçador Sokağının 9. numarasındaki Hahambaşı havrası.'],
+['HV_S-06','İtalya Cemaati Havrası','Havra','Tahtakale\'de Simonaçi Sokağının 18. numarasındaki İtalya cemaati havrası.'],
+['HV_S-07','İstanbul Cemaati Havrası','Havra','Tahtakale\'de Havra Sokağının 8. numarasındaki İstanbul cemaati havrası.'],
+['HV_S-08','Küçük Portkal Cemaati Havrası','Havra','Tahtakale\'de Hahambaşı Sokağının 39. numarasındaki Küçük Portkal cemaati havrası.'],
+['HV_S-09','Büyük Portkal Cemaati Havrası','Havra','Tahtakale\'de Havra Sokağının 5. numarasındaki Büyük Portkal cemaati havrası.'],
+['HV_S-10','Aragon Cemaati Havrası','Havra','Tahtakale\'de Hahambaşı Sokağının 20. numarasındaki Aragon cemaati havrası.'],
+['HV_S-11','Gıroz Cemaati Havra Arsası','Havra','Tahtakale\'de Havra Sokağının 1. numarasındaki Gıroz cemaatinin havra arsası.'],
+['HV_S-12','Alaman Cemaati Havrası','Havra','Tahtakale\'de Zindan Sokağının 1. numarasındaki Alaman cemaati havrası.'],
+['HV_S-13','Budin Cemaati Havrası','Havra','Tahtakale\'de Tahtakale Caddesinin 22. numarasındaki Budin cemaati havrası.'],
+['HV_S-14','Mayor Cemaati Havrası','Havra','Tahtakale\'de Hahambaşı Sokağının 29. numarasındaki Mayor cemaati havrası.'],
+['KP-01','Bönce Köprüsü','Köprü','Bönce adıyla bilinen köprüdür.'],
+['KP-02','Saray Köprüsü','Köprü','Sarây civarındaki köprüdür.'],
+['KP-03','Saraçhâne Köprüsü','Köprü','Saraçhâne civarındaki köprüdür. Hadım Şehâbeddin Paşa tarafından yaptırılmıştır.'],
+['KP-04','Yeni İmâret Köprüsü','Köprü','Yeni İmâret civarındaki köprüdür.'],
+['KP-05','Yalnızgöz Köprüsü','Köprü','Yalnızgöz adıyla bilinen köprüdür.'],
+['KP-06','Mihal Köprüsü','Köprü','Gâzî Mihal Bey tarafından yaptırılan tarihi köprüdür.'],
+['KP-07','Eski Köprü','Köprü','Edirne\'nin en eski köprülerinden biridir.'],
+['N-01','Meriç Nehri','Nehir','Edirne\'nin en büyük nehri; şehrin güneyinden doğudan batıya doğru akar. Eski adları Âmûz, Hiber, Hebros\'tur.'],
+['N-02','Tunca Nehri','Nehir','Edirne\'yi çeviren nehirdir. Şehrin birçok mahallesinden geçer ve çeşitli köprülerle geçilir. Meriç\'e Kasımpaşa burnunda karışır.'],
+['N-03','Arda Nehri','Nehir','Rodop dağlarından doğan ve Meriç\'e yakın Maraş köyünde karışan nehirdir. Suyu gayet saf ve latiftir; selâtin ve eşraf bu suyu içerdi.'],
+['OM-01','Hâce Ali Menzili','Ok Meydanı','Ok meydanı; meşhur Hâce Ali\'nin taş sürdüğü menzil.'],
+['OM-02','Tozkoparan Dede Kemal Menzili','Ok Meydanı','Tozkoparan\'ın Dede Kemal menzilini attığı ok alanı.'],
+['OM-03','Ova Yolu Menzili','Ok Meydanı','Edirne\'de ovaya giden yol menzili.'],
+['OM-04','Mütevellî Menzili','Ok Meydanı','Mütevellî adıyla bilinen ok menzili.'],
+['OM-05','Bağlaryolu Menzili','Ok Meydanı','Bağlaryolu\'ndaki ok menzili.'],
+['OM-06','Sarây Ovası Ağaç Menzili','Ok Meydanı','Sarây Ovasında bulunan ağaç menzili.'],
+['OM-07','Namâzgâh Ovası Menzili','Ok Meydanı','Namâzgâh Ovasındaki ok menzili.'],
+['OM-08','Tîr-ger Hasan Çelebi Menzili','Ok Meydanı','Ok ustası Hasan Çelebi\'nin menzili.'],
+['OM-09','Lodos Menzili','Ok Meydanı','Lodos yönündeki ok menzili.'],
+['OM-10','Musallâ Menzili','Ok Meydanı','Musallâ alanındaki ok menzili.'],
+['OM-11','Musallâ Kıble Menzili','Ok Meydanı','Musallâ Meydanında kıble yönündeki menzil.'],
+['OM-12','Musallâ Poyraz Menzili','Ok Meydanı','Musallâ\'da poyraz yönündeki menzil.'],
+['OM-13','Gündoğrusu Menzili','Ok Meydanı','Güneydoğu yönündeki ok menzili.'],
+['OM-14','Timurtaş Menzili','Ok Meydanı','Timurtaş\'ın ok menzili.']
+];
+
+
+const TYPE_COLORS = {
+  'Saray':'#b8860b','Cami':'#1565c0','Mescit':'#0d47a1','Tekke':'#880e4f',
+  'Medrese':'#e65100','Türbe':'#6a1b9a','İmaret':'#2e7d32','Mektep':'#f9a825',
+  'Çarşı':'#bf360c','Han':'#4e342e','Hamam':'#00838f','Sebil':'#00695c',
+  'Çeşme':'#00897b','Havuz':'#0277bd','Buzhane':'#3949ab','Kilise':'#c62828',
+  'Havra':'#ad1457','Köprü':'#4527a0','Nehir':'#1976d2','Ok Meydanı':'#558b2f',
+};
+
+const TYPE_CSS = {
+  'Saray':'cat-saray','Cami':'cat-cami','Mescit':'cat-mescit','Tekke':'cat-tekke',
+  'Medrese':'cat-medrese','Türbe':'cat-turbe','İmaret':'cat-imaret','Mektep':'cat-mektep',
+  'Çarşı':'cat-carsi','Han':'cat-han','Hamam':'cat-hamam','Sebil':'cat-sebil',
+  'Çeşme':'cat-cesme','Havuz':'cat-havuz','Buzhane':'cat-buzhane','Kilise':'cat-kilise',
+  'Havra':'cat-havra','Köprü':'cat-kopru','Nehir':'cat-nehir','Ok Meydanı':'cat-okmeydani',
+};
+
+let state = {
+  data: RAW_DATA.map(r => ({
+    id:r[0], name:r[1], type:r[2], desc:r[3],
+    wikidata:'', ke:'', survival:'', lat:'', lng:'',
+    wikiFetching:false, wikiFetchMsg:''
+  })),
+  sortCol:null, sortDir:1,
+  searchText:'', catFilter:'', pairFilter:'all',
+  currentTab:'table'
+};
+
+// ========================
+// PERSISTENCE
+// ========================
+function loadSaved(){
+  try{
+    const s = localStorage.getItem('edirne_v3');
+    if(s){ const p=JSON.parse(s); p.forEach(it=>{ const r=state.data.find(x=>x.id===it.id); if(r){r.wikidata=it.wikidata||'';r.ke=it.ke||'';r.survival=it.survival||'';r.lat=it.lat||'';r.lng=it.lng||'';} }); }
+  }catch(e){}
+}
+function saveData(){
+  try{ localStorage.setItem('edirne_v3',JSON.stringify(state.data.map(r=>({id:r.id,wikidata:r.wikidata,ke:r.ke,survival:r.survival,lat:r.lat,lng:r.lng})))); }catch(e){}
+}
+
+// ========================
+// WIKIDATA
+// ========================
+async function fetchWikidataCoords(qid, rowId){
+  if(!qid||!/^Q\d+$/i.test(qid.trim())) return;
+  const row = state.data.find(r=>r.id===rowId);
+  if(!row) return;
+  row.wikiFetching=true; row.wikiFetchMsg='Sorgulanıyor…';
+  renderTable();
+  try{
+    const cq = qid.trim().toUpperCase();
+    const resp = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${cq}.json`);
+    const data = await resp.json();
+    const ent = data.entities[cq];
+    if(ent&&ent.claims&&ent.claims['P625']){
+      const cv = ent.claims['P625'][0].mainsnak.datavalue.value;
+      row.lat = cv.latitude.toFixed(6);
+      row.lng = cv.longitude.toFixed(6);
+      row.wikiFetchMsg = '✓ Koordinat alındı';
+    } else {
+      row.wikiFetchMsg = '— Koordinat yok';
+    }
+  }catch(e){ row.wikiFetchMsg='✗ '+e.message; }
+  row.wikiFetching=false;
+  saveData();
+  renderTable();
+  updateMapMarkers();
+}
+
+// ========================
+// FILTER
+// ========================
+function getFiltered(){
+  let rows=[...state.data];
+  const q=state.searchText.toLowerCase().trim();
+  if(q) rows=rows.filter(r=>r.name.toLowerCase().includes(q)||r.desc.toLowerCase().includes(q)||r.id.toLowerCase().includes(q)||r.type.toLowerCase().includes(q));
+  if(state.catFilter) rows=rows.filter(r=>r.type===state.catFilter);
+  if(state.pairFilter!=='all'){
+    if(state.pairFilter==='wikidata') rows=rows.filter(r=>r.wikidata);
+    else if(state.pairFilter==='no-wikidata') rows=rows.filter(r=>!r.wikidata);
+    else if(state.pairFilter==='ke') rows=rows.filter(r=>r.ke);
+    else if(state.pairFilter==='no-ke') rows=rows.filter(r=>!r.ke);
+    else if(state.pairFilter==='both') rows=rows.filter(r=>r.wikidata&&r.ke);
+    else if(state.pairFilter==='none') rows=rows.filter(r=>!r.wikidata&&!r.ke);
+    else if(state.pairFilter==='ayakta') rows=rows.filter(r=>r.survival==='yes');
+    else if(state.pairFilter==='yikilmis') rows=rows.filter(r=>r.survival==='no');
+  }
+  if(state.sortCol) rows.sort((a,b)=>(a[state.sortCol]||'').localeCompare(b[state.sortCol]||'','tr')*state.sortDir);
+  return rows;
+}
+
+// ========================
+// RENDER TABLE
+// ========================
+function renderTable(){
+  const rows=getFiltered();
+  const tbody=document.getElementById('tableBody');
+  const noRes=document.getElementById('noResults');
+  document.getElementById('resultsInfo').textContent=rows.length+' kayıt';
+  if(!rows.length){tbody.innerHTML='';noRes.style.display='block';return;}
+  noRes.style.display='none';
+  tbody.innerHTML=rows.map(row=>{
+    const css=TYPE_CSS[row.type]||'cat-diger';
+    const trCls=row.wikidata&&row.ke?'has-both':row.wikidata?'has-wikidata':row.ke?'has-ke':'';
+    const dShort=row.desc.length>110?row.desc.slice(0,110)+'… ':row.desc;
+    const hasFull=row.desc.length>110;
+    const coordCell=row.lat&&row.lng
+      ?`<a class="coords-map-link" href="https://www.openstreetmap.org/?mlat=${row.lat}&mlon=${row.lng}#map=17/${row.lat}/${row.lng}" target="_blank">📍 ${row.lat}, ${row.lng}</a>`
+      :'<span style="color:var(--muted);font-style:italic">—</span>';
+    const fetchMsg=row.wikiFetching?`<span class="fetch-status">⏳ ${row.wikiFetchMsg}</span>`
+      :row.wikiFetchMsg?`<span class="fetch-status ${row.wikiFetchMsg.startsWith('✓')?'fetch-ok':'fetch-err'}">${row.wikiFetchMsg}</span>`:'';
+    const survVal=row.survival||'';
+    const survCls=survVal==='yes'?'surv-yes':survVal==='no'?'surv-no':survVal==='partial'?'surv-partial':'surv-unknown';
+    const survLabel=survVal==='yes'?'✓ Ayakta':survVal==='no'?'✗ Yıkılmış':survVal==='partial'?'~ Kısmen':'— Bilinmiyor';
+    return `<tr class="${trCls}" data-id="${row.id}">
+<td class="td-no">${row.id}</td>
+<td class="td-name">${row.name}</td>
+<td class="td-type"><span class="type-badge ${css}">${row.type}</span></td>
+<td class="td-desc"><span>${dShort}</span>${hasFull?`<span class="desc-full" id="df-${row.id}">${row.desc.slice(110)}</span><span class="desc-toggle" onclick="tgl('${row.id}')">daha</span>`:''}</td>
+<td class="td-edit">
+  <div class="editable-cell"><input class="cell-input wikidata-input" type="text" placeholder="Q…" value="${row.wikidata}" data-id="${row.id}" data-field="wikidata" onchange="cellChange(this)" onkeydown="ckd(event,this)"></div>
+  ${fetchMsg}
+</td>
+<td class="td-edit"><div class="editable-cell"><input class="cell-input ke-input" type="text" placeholder="KE…" value="${row.ke}" data-id="${row.id}" data-field="ke" onchange="cellChange(this)" onkeydown="ckd(event,this)"></div></td>
+<td class="td-survival">
+  <select class="surv-select ${survCls}" data-id="${row.id}" onchange="survChange(this)">
+    <option value="" ${!survVal?'selected':''}>— Bilinmiyor</option>
+    <option value="yes" ${survVal==='yes'?'selected':''}>✓ Ayakta</option>
+    <option value="no" ${survVal==='no'?'selected':''}>✗ Yıkılmış</option>
+    <option value="partial" ${survVal==='partial'?'selected':''}>~ Kısmen</option>
+  </select>
+</td>
+<td class="td-coords">${coordCell}</td>
+</tr>`;
+  }).join('');
+}
+
+function tgl(id){
+  const el=document.getElementById('df-'+id);
+  const t=el.nextElementSibling;
+  if(el.classList.contains('open')){el.classList.remove('open');t.textContent='daha';}
+  else{el.classList.add('open');t.textContent='gizle';}
+}
+function cellChange(inp){
+  const id=inp.dataset.id,field=inp.dataset.field,val=inp.value.trim();
+  const row=state.data.find(r=>r.id===id);
+  if(!row)return;
+  row[field]=val;
+  if(field==='wikidata'&&val){row.wikiFetchMsg='';fetchWikidataCoords(val,id);}
+  saveData();
+  const tr=inp.closest('tr');
+  if(tr) tr.className=row.wikidata&&row.ke?'has-both':row.wikidata?'has-wikidata':row.ke?'has-ke':'';
+}
+function survChange(sel){
+  const id=sel.dataset.id;
+  const row=state.data.find(r=>r.id===id);
+  if(!row)return;
+  row.survival=sel.value;
+  sel.className='surv-select'+(sel.value==='yes'?' surv-yes':sel.value==='no'?' surv-no':sel.value==='partial'?' surv-partial':' surv-unknown');
+  saveData();
+}
+function ckd(e,inp){if(e.key==='Enter'){inp.blur();cellChange(inp);}}
+function sortBy(col){if(state.sortCol===col)state.sortDir*=-1;else{state.sortCol=col;state.sortDir=1;}renderTable();}
+
+// ========================
+// MAP
+// ========================
+let map=null, markers={}, hiddenTypes=new Set();
+
+function initMap(){
+  if(map) return;
+  map = L.map('map').setView([41.678, 26.556], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap contributors',maxZoom:19
+  }).addTo(map);
+  buildLegend();
+  updateMapMarkers();
+}
+
+function getTypeColor(type){ return TYPE_COLORS[type]||'#777'; }
+
+function makeIcon(type,id){
+  const c=getTypeColor(type);
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
+    <path d="M14 0C6.27 0 0 6.27 0 14c0 10 14 22 14 22s14-12 14-22C28 6.27 21.73 0 14 0z" fill="${c}" stroke="white" stroke-width="1.5"/>
+    <circle cx="14" cy="14" r="5" fill="white" opacity="0.9"/>
+  </svg>`;
+  return L.divIcon({
+    className:'',
+    html:svg,
+    iconSize:[28,36],iconAnchor:[14,36],popupAnchor:[0,-36]
+  });
+}
+
+function updateMapMarkers(){
+  if(!map) return;
+  Object.values(markers).forEach(m=>map.removeLayer(m));
+  markers={};
+  const withCoords = state.data.filter(r=>r.lat&&r.lng);
+  withCoords.forEach(row=>{
+    if(hiddenTypes.has(row.type)) return;
+    const m = L.marker([parseFloat(row.lat),parseFloat(row.lng)],{icon:makeIcon(row.type,row.id)})
+      .bindPopup(`<b style="color:${getTypeColor(row.type)}">${row.name}</b><br>
+        <span style="font-family:monospace;font-size:11px;color:#555">${row.id}</span><br>
+        <span style="font-size:12px">${row.type}</span><br>
+        ${row.wikidata?`<a href="https://www.wikidata.org/wiki/${row.wikidata}" target="_blank">${row.wikidata}</a>`:''}
+        <br><small style="color:#777">${row.lat}, ${row.lng}</small>`)
+      .addTo(map);
+    markers[row.id]=m;
+  });
+  document.getElementById('mapInfo').textContent=
+    withCoords.length ? `${withCoords.length} yapı konumlandırıldı` : 'Wikidata QID girilen yapılar haritada gösterilir.';
+}
+
+function buildLegend(){
+  const leg=document.getElementById('mapLegend');
+  leg.innerHTML='<h4>YAPI TÜRLERİ</h4>';
+  Object.entries(TYPE_COLORS).forEach(([type,color])=>{
+    const row=document.createElement('div');
+    row.className='legend-row';
+    row.dataset.type=type;
+    row.innerHTML=`<div class="legend-dot" style="background:${color}"></div><span>${type}</span>`;
+    row.onclick=()=>{
+      if(hiddenTypes.has(type)){hiddenTypes.delete(type);row.classList.remove('hidden-layer');}
+      else{hiddenTypes.add(type);row.classList.add('hidden-layer');}
+      updateMapMarkers();
+    };
+    leg.appendChild(row);
+  });
+}
+
+// ========================
+// TABS
+// ========================
+function showTab(tab){
+  state.currentTab=tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
+  document.getElementById(tab+'-pane').classList.add('active');
+  if(tab==='map'){setTimeout(()=>{initMap();map.invalidateSize();},50);}
+}
+
+// ========================
+// CSV EXPORT
+// ========================
+function exportCSV(){
+  const rows=getFiltered();
+  const hdrs=['Kod','Yapı Adı','Tür','Açıklama','Wikidata QID','KE ID','Günümüzde','Enlem','Boylam'];
+  const lines=[hdrs.join(',')];
+  rows.forEach(r=>{ lines.push([r.id,r.name,r.type,r.desc.replace(/,/g,'،'),r.wikidata,r.ke,r.survival,r.lat,r.lng].map(c=>`"${(c||'').replace(/"/g,'""')}"`).join(',')); });
+  const blob=new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='edirne_yapilari.csv';a.click();
+}
+
+// ========================
+// EVENTS
+// ========================
+document.getElementById('searchInput').addEventListener('input',e=>{state.searchText=e.target.value;renderTable();});
+document.getElementById('catFilter').addEventListener('change',e=>{state.catFilter=e.target.value;renderTable();});
+document.querySelectorAll('.badge-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.badge-btn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');state.pairFilter=b.dataset.pair;renderTable();
+}));
+
+// ========================
+// INIT
+// ========================
+loadSaved();
+renderTable();
+</script>
+</body>
+</html>
